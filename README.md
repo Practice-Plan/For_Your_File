@@ -59,4 +59,4 @@ This frontend will be integrated with a Rust backend using Tauri. The actual Tau
 
 ## License
 
-MIT
+GPL-3.0

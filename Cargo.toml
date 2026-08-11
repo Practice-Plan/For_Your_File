@@ -4,7 +4,7 @@ version = "0.0.1"
 edition = "2021"
 authors = ["Practice Plan"]
 description = "LNK File Management Center - A safe and intelligent way to manage Windows shortcuts"
-license = "MIT"
+license = "GPL-3.0"
 
 [dependencies]
 # Database
