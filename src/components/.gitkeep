@@ -1,0 +1,17 @@
+# Components Directory
+
+This directory contains reusable UI components for the LNK File Management Center.
+
+## Structure
+
+- `TitleBar/` - Custom window title bar with minimize/maximize/close buttons
+- `Sidebar/` - Navigation sidebar
+- `Toolbar/` - Action toolbar components
+- `FileList/` - File listing and grid components
+- `FileDetail/` - File detail panel components
+- `Modals/` - Modal dialogs
+- `Buttons/` - Custom button components
+
+## Usage
+
+Components should be organized by feature, not by type.

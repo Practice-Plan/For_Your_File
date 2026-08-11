@@ -1,0 +1,11 @@
+# Utils Directory
+
+This directory contains utility functions for the LNK File Management Center.
+
+## Planned Utilities
+
+- `fileUtils.ts` - File operations helpers
+- `lnkParser.ts` - LNK file parsing utilities
+- `formatters.ts` - Data formatting functions
+- `validators.ts` - Input validation helpers
+- `constants.ts` - Application constants

@@ -1,0 +1,12 @@
+# Hooks Directory
+
+This directory contains custom React hooks for the LNK File Management Center.
+
+## Planned Hooks
+
+- `useLnkFiles` - Manage LNK file state and operations
+- `useTheme` - Theme management (light/dark mode)
+- `useBatchJob` - Batch operation management
+- `useSettings` - Application settings management
+- `useDragDrop` - Drag and drop functionality
+- `useKeyboardShortcuts` - Keyboard shortcut handling

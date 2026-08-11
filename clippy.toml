@@ -1,0 +1,35 @@
+# Clippy linting configuration
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 25
+
+# Maximum number of lines in a function
+too-many-arguments-threshold = 7
+
+# Maximum number of struct fields
+max-struct-bool-amount = 3
+
+# Type complexity threshold
+type-complexity-threshold = 250
+
+# Allow certain lints that might be too strict
+# msrv = "1.70.0"  # Minimum Supported Rust Version
+
+# Blacklist for doc comments
+doc-valid-idents = [
+    "GitHub",
+    "GitHub Actions",
+    "LNK",
+    "SQLite",
+    "FTS5",
+    "OneDrive",
+]
+
+# Threshold for trivially sized copies
+trivial-copy-size-limit = 16
+
+# Maximum size for stack arrays
+array-size-threshold = 512
+
+# Default implementation of standard library traits
+standard-macro-braces = []
