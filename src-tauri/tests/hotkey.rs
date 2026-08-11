@@ -28,11 +28,7 @@ fn test_hotkey_config_parsing() {
             "Modifiers mismatch for {}",
             hotkey_str
         );
-        assert_eq!(
-            config.key, expected_key,
-            "Key mismatch for {}",
-            hotkey_str
-        );
+        assert_eq!(config.key, expected_key, "Key mismatch for {}", hotkey_str);
     }
 }
 
@@ -40,14 +36,18 @@ fn test_hotkey_config_parsing() {
 #[test]
 fn test_invalid_hotkey_parsing() {
     let invalid_cases = vec![
-        "",           // Empty string
-        "   ",        // Only spaces
-        "+",          // Only separator
+        "",    // Empty string
+        "   ", // Only spaces
+        "+",   // Only separator
     ];
 
     for invalid_str in invalid_cases {
         let result = HotkeyConfig::from_string(invalid_str);
-        assert!(result.is_err(), "Expected error for invalid hotkey: '{}'", invalid_str);
+        assert!(
+            result.is_err(),
+            "Expected error for invalid hotkey: '{}'",
+            invalid_str
+        );
     }
 }
 
@@ -209,9 +209,9 @@ fn test_hotkey_config_serialization() {
 fn test_windows_specific_hotkeys() {
     // Test Windows-specific key combinations
     let windows_hotkeys = vec![
-        "Alt+Tab",           // Common but should be parseable
-        "Ctrl+Alt+Delete",   // System key, but parseable
-        "Win+E",             // Windows key combination
+        "Alt+Tab",         // Common but should be parseable
+        "Ctrl+Alt+Delete", // System key, but parseable
+        "Win+E",           // Windows key combination
     ];
 
     for hotkey in windows_hotkeys {

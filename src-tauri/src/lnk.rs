@@ -49,11 +49,11 @@ fn parse_lnk_file_windows(path: &std::path::Path) -> Result<LnkProperties, Strin
     use std::ffi::OsString;
     use std::os::windows::ffi::{OsStrExt, OsStringExt};
     use windows::core::{Interface, PCWSTR};
+    use windows::Win32::Storage::FileSystem::WIN32_FIND_DATAW;
     use windows::Win32::System::Com::{
         CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, CLSCTX_SERVER,
         COINIT_MULTITHREADED, STGM,
     };
-    use windows::Win32::Storage::FileSystem::WIN32_FIND_DATAW;
     use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
 
     // Initialize COM

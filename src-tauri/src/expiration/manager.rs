@@ -11,9 +11,7 @@ use crate::models::Entry;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ExpirationStatus {
     /// Entry has expired
-    Expired {
-        expired_at: i64,
-    },
+    Expired { expired_at: i64 },
     /// Entry is expiring soon (within warning threshold)
     ExpiringSoon {
         expires_at: i64,
@@ -97,7 +95,7 @@ impl ExpirationManager {
             .context("Failed to prepare expired entries query")?;
 
         let entries = stmt
-            .query_map([now], |row| Entry::from_row(row))
+            .query_map([now], Entry::from_row)
             .context("Failed to query expired entries")?
             .collect::<Result<Vec<_>, _>>()
             .context("Failed to collect expired entries")?;
@@ -131,8 +129,7 @@ impl ExpirationManager {
             .query_map([now_ts, warning_ts], |row| {
                 let entry = Entry::from_row(row)?;
                 let expires_at = entry.expires_at.unwrap_or(0);
-                let days_remaining =
-                    ((expires_at - now_ts) / 86400).max(0) as i32;
+                let days_remaining = ((expires_at - now_ts) / 86400).max(0) as i32;
                 Ok((entry, days_remaining))
             })
             .context("Failed to query expiring soon entries")?
@@ -176,11 +173,15 @@ impl ExpirationManager {
         let now = Utc::now().timestamp();
 
         // Get current expiration or use now as base
-        let current_expires_at: Option<i64> = self.conn.query_row(
-            "SELECT expires_at FROM entries WHERE id = ?1",
-            [entry_id],
-            |row| row.get(0),
-        ).optional()?.flatten();
+        let current_expires_at: Option<i64> = self
+            .conn
+            .query_row(
+                "SELECT expires_at FROM entries WHERE id = ?1",
+                [entry_id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .flatten();
 
         let new_expires_at = match current_expires_at {
             Some(ts) => ts + (days as i64 * 86400),
@@ -204,7 +205,9 @@ impl ExpirationManager {
                 let now = Utc::now().timestamp();
 
                 if expires_at < now {
-                    ExpirationStatus::Expired { expired_at: expires_at }
+                    ExpirationStatus::Expired {
+                        expired_at: expires_at,
+                    }
                 } else {
                     let days_remaining = ((expires_at - now) / 86400) as i32;
 
@@ -298,8 +301,7 @@ pub fn format_remaining_time(seconds: i64) -> String {
 /// Helper function to format expiration date
 #[allow(dead_code)]
 pub fn format_expiration_date(timestamp: i64) -> String {
-    let dt = DateTime::from_timestamp(timestamp, 0)
-        .unwrap_or_else(|| Utc::now());
+    let dt = DateTime::from_timestamp(timestamp, 0).unwrap_or_else(Utc::now);
     dt.format("%Y-%m-%d %H:%M").to_string()
 }
 

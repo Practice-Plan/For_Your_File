@@ -8,8 +8,8 @@ use crate::expiration::{ExpirationConfig, ExpirationManager, ExpirationStatus};
 use crate::hotkey::{HotkeyConfig, HotkeyManager};
 use crate::lnk;
 use crate::notifications::{
-    show_batch_expiration_notification, show_expired_notification,
-    show_expiring_soon_notification, show_extension_notification,
+    show_batch_expiration_notification, show_expired_notification, show_expiring_soon_notification,
+    show_extension_notification,
 };
 use crate::protocol::{parse_deep_link, ProtocolAction, ProtocolRequest};
 use rusqlite::OptionalExtension;
@@ -195,8 +195,8 @@ pub fn register_shell_extension() -> Result<String, String> {
     use std::process::Command;
 
     // Get the executable path
-    let exe_path = std::env::current_exe()
-        .map_err(|e| format!("Failed to get executable path: {}", e))?;
+    let exe_path =
+        std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
     // Get the installation script path
     let script_path = exe_path
@@ -206,15 +206,21 @@ pub fn register_shell_extension() -> Result<String, String> {
         .ok_or_else(|| "Failed to find installation script".to_string())?;
 
     if !script_path.exists() {
-        return Err(format!("Installation script not found at: {}", script_path.display()));
+        return Err(format!(
+            "Installation script not found at: {}",
+            script_path.display()
+        ));
     }
 
     // Execute PowerShell registration script
     let result = Command::new("powershell")
         .args([
-            "-ExecutionPolicy", "Bypass",
-            "-File", &script_path.to_string_lossy(),
-            "-ExePath", &exe_path.to_string_lossy(),
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            &script_path.to_string_lossy(),
+            "-ExePath",
+            &exe_path.to_string_lossy(),
         ])
         .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .output()
@@ -236,8 +242,8 @@ pub fn unregister_shell_extension() -> Result<String, String> {
     use std::process::Command;
 
     // Get the uninstallation script path
-    let exe_path = std::env::current_exe()
-        .map_err(|e| format!("Failed to get executable path: {}", e))?;
+    let exe_path =
+        std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
     let script_path = exe_path
         .parent()
@@ -246,14 +252,19 @@ pub fn unregister_shell_extension() -> Result<String, String> {
         .ok_or_else(|| "Failed to find uninstallation script".to_string())?;
 
     if !script_path.exists() {
-        return Err(format!("Uninstallation script not found at: {}", script_path.display()));
+        return Err(format!(
+            "Uninstallation script not found at: {}",
+            script_path.display()
+        ));
     }
 
     // Execute PowerShell uninstallation script
     let result = Command::new("powershell")
         .args([
-            "-ExecutionPolicy", "Bypass",
-            "-File", &script_path.to_string_lossy(),
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            &script_path.to_string_lossy(),
         ])
         .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .output()
@@ -281,7 +292,8 @@ pub fn is_shell_extension_registered() -> bool {
         .chain(Some(0))
         .collect();
 
-    let mut hkey: windows::Win32::System::Registry::HKEY = windows::Win32::System::Registry::HKEY::default();
+    let mut hkey: windows::Win32::System::Registry::HKEY =
+        windows::Win32::System::Registry::HKEY::default();
 
     let result = unsafe {
         RegOpenKeyExW(
@@ -331,23 +343,26 @@ pub fn check_expired_entries(app_handle: AppHandle) -> Result<Vec<Entry>, String
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
-    
+
     let manager = ExpirationManager::new(conn);
     manager.check_expired_entries().map_err(|e| e.to_string())
 }
 
 /// Get entries expiring soon
 #[tauri::command]
-pub fn get_expiring_soon(app_handle: AppHandle, warning_days: Option<i32>) -> Result<Vec<(Entry, i32)>, String> {
+pub fn get_expiring_soon(
+    app_handle: AppHandle,
+    warning_days: Option<i32>,
+) -> Result<Vec<(Entry, i32)>, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
-    
+
     let mut config = ExpirationConfig::default();
     if let Some(days) = warning_days {
         config.warning_days = days;
     }
-    
+
     let manager = ExpirationManager::with_config(conn, config);
     manager.get_expiring_soon().map_err(|e| e.to_string())
 }
@@ -358,11 +373,12 @@ pub fn set_expiration(app_handle: AppHandle, entry_id: i64, expires_at: i64) -> 
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
-    
+
     let manager = ExpirationManager::new(conn);
-    let dt = chrono::DateTime::from_timestamp(expires_at, 0)
-        .unwrap_or_else(chrono::Utc::now);
-    manager.set_expiration(entry_id, dt).map_err(|e| e.to_string())
+    let dt = chrono::DateTime::from_timestamp(expires_at, 0).unwrap_or_else(chrono::Utc::now);
+    manager
+        .set_expiration(entry_id, dt)
+        .map_err(|e| e.to_string())
 }
 
 /// Remove expiration from an entry
@@ -371,9 +387,11 @@ pub fn remove_expiration(app_handle: AppHandle, entry_id: i64) -> Result<(), Str
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
-    
+
     let manager = ExpirationManager::new(conn);
-    manager.remove_expiration(entry_id).map_err(|e| e.to_string())
+    manager
+        .remove_expiration(entry_id)
+        .map_err(|e| e.to_string())
 }
 
 /// Extend expiration by N days
@@ -382,18 +400,23 @@ pub fn extend_expiration(app_handle: AppHandle, entry_id: i64, days: i32) -> Res
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
-    
+
     let manager = ExpirationManager::new(conn);
-    manager.extend_expiration(entry_id, days).map_err(|e| e.to_string())
+    manager
+        .extend_expiration(entry_id, days)
+        .map_err(|e| e.to_string())
 }
 
 /// Get expiration status for an entry
 #[tauri::command]
-pub fn get_expiration_status(app_handle: AppHandle, entry: Entry) -> Result<ExpirationStatus, String> {
+pub fn get_expiration_status(
+    app_handle: AppHandle,
+    entry: Entry,
+) -> Result<ExpirationStatus, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
-    
+
     let manager = ExpirationManager::new(conn);
     Ok(manager.get_expiration_status(&entry))
 }
@@ -404,9 +427,9 @@ pub fn get_expiration_counts(app_handle: AppHandle) -> Result<ExpirationCounts, 
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
-    
+
     let manager = ExpirationManager::new(conn);
-    
+
     Ok(ExpirationCounts {
         expired: manager.count_expired().map_err(|e| e.to_string())?,
         expiring_soon: manager.count_expiring_soon().map_err(|e| e.to_string())?,
@@ -419,7 +442,7 @@ pub fn delete_expired_entries(app_handle: AppHandle) -> Result<usize, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
-    
+
     let manager = ExpirationManager::new(conn);
     manager.delete_all_expired().map_err(|e| e.to_string())
 }
@@ -433,7 +456,10 @@ pub fn get_expiration_config(_app_handle: AppHandle) -> Result<ExpirationConfig,
 
 /// Update expiration configuration
 #[tauri::command]
-pub fn update_expiration_config(_app_handle: AppHandle, config: ExpirationConfig) -> Result<(), String> {
+pub fn update_expiration_config(
+    _app_handle: AppHandle,
+    config: ExpirationConfig,
+) -> Result<(), String> {
     // TODO: Save to app configuration
     log::info!("Expiration config updated: {:?}", config);
     Ok(())
@@ -441,7 +467,13 @@ pub fn update_expiration_config(_app_handle: AppHandle, config: ExpirationConfig
 
 /// Show expiration notification manually
 #[tauri::command]
-pub fn show_expiration_notification(app_handle: AppHandle, notification_type: String, entry_name: String, entry_id: i64, days_remaining: Option<i32>) -> Result<(), String> {
+pub fn show_expiration_notification(
+    app_handle: AppHandle,
+    notification_type: String,
+    entry_name: String,
+    entry_id: i64,
+    days_remaining: Option<i32>,
+) -> Result<(), String> {
     match notification_type.as_str() {
         "expired" => {
             show_expired_notification(&app_handle, &entry_name, entry_id)
@@ -510,7 +542,11 @@ pub struct GroupWithCountResponse {
 
 /// Create a new group
 #[tauri::command]
-pub fn create_group(app_handle: AppHandle, name: String, color: String) -> Result<GroupResponse, String> {
+pub fn create_group(
+    app_handle: AppHandle,
+    name: String,
+    color: String,
+) -> Result<GroupResponse, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
@@ -626,7 +662,11 @@ pub fn update_group(
 
     // Check if group exists
     let exists: bool = conn
-        .query_row("SELECT 1 FROM groups WHERE id = ?1", rusqlite::params![id], |_| Ok(true))
+        .query_row(
+            "SELECT 1 FROM groups WHERE id = ?1",
+            rusqlite::params![id],
+            |_| Ok(true),
+        )
         .optional()
         .map_err(|e| format!("Failed to check group: {}", e))?
         .is_some();
@@ -689,8 +729,11 @@ pub fn delete_group(app_handle: AppHandle, id: i64) -> Result<bool, String> {
         .map_err(|e| format!("Failed to open database: {}", e))?;
 
     // Delete associations first
-    conn.execute("DELETE FROM entry_groups WHERE group_id = ?1", rusqlite::params![id])
-        .map_err(|e| format!("Failed to delete associations: {}", e))?;
+    conn.execute(
+        "DELETE FROM entry_groups WHERE group_id = ?1",
+        rusqlite::params![id],
+    )
+    .map_err(|e| format!("Failed to delete associations: {}", e))?;
 
     // Delete the group
     let rows = conn
@@ -702,7 +745,11 @@ pub fn delete_group(app_handle: AppHandle, id: i64) -> Result<bool, String> {
 
 /// Add an entry to a group
 #[tauri::command]
-pub fn add_entry_to_group(app_handle: AppHandle, entry_id: i64, group_id: i64) -> Result<bool, String> {
+pub fn add_entry_to_group(
+    app_handle: AppHandle,
+    entry_id: i64,
+    group_id: i64,
+) -> Result<bool, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
@@ -718,7 +765,11 @@ pub fn add_entry_to_group(app_handle: AppHandle, entry_id: i64, group_id: i64) -
 
 /// Remove an entry from a group
 #[tauri::command]
-pub fn remove_entry_from_group(app_handle: AppHandle, entry_id: i64, group_id: i64) -> Result<bool, String> {
+pub fn remove_entry_from_group(
+    app_handle: AppHandle,
+    entry_id: i64,
+    group_id: i64,
+) -> Result<bool, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
@@ -756,7 +807,7 @@ pub fn get_group_entries(app_handle: AppHandle, group_id: i64) -> Result<Vec<Ent
         .map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
     let entries = stmt
-        .query_map(rusqlite::params![group_id], |row| Entry::from_row(row))
+        .query_map(rusqlite::params![group_id], Entry::from_row)
         .map_err(|e| format!("Failed to query entries: {}", e))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| format!("Failed to collect entries: {}", e))?;
@@ -766,7 +817,10 @@ pub fn get_group_entries(app_handle: AppHandle, group_id: i64) -> Result<Vec<Ent
 
 /// Get all groups for an entry
 #[tauri::command]
-pub fn get_entry_groups(app_handle: AppHandle, entry_id: i64) -> Result<Vec<GroupResponse>, String> {
+pub fn get_entry_groups(
+    app_handle: AppHandle,
+    entry_id: i64,
+) -> Result<Vec<GroupResponse>, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
@@ -813,7 +867,10 @@ pub struct GroupExportResponse {
 
 /// Export a group as JSON
 #[tauri::command]
-pub fn export_group(app_handle: AppHandle, group_id: i64) -> Result<Option<GroupExportResponse>, String> {
+pub fn export_group(
+    app_handle: AppHandle,
+    group_id: i64,
+) -> Result<Option<GroupExportResponse>, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
@@ -860,7 +917,11 @@ pub fn import_group(
     // Associate entries (skip non-existent)
     for entry_id in entry_ids {
         let exists: bool = conn
-            .query_row("SELECT 1 FROM entries WHERE id = ?1", rusqlite::params![entry_id], |_| Ok(true))
+            .query_row(
+                "SELECT 1 FROM entries WHERE id = ?1",
+                rusqlite::params![entry_id],
+                |_| Ok(true),
+            )
             .optional()
             .map_err(|e| format!("Failed to check entry: {}", e))?
             .is_some();
@@ -879,7 +940,11 @@ pub fn import_group(
 
 /// Batch add entries to a group
 #[tauri::command]
-pub fn batch_add_to_group(app_handle: AppHandle, entry_ids: Vec<i64>, group_id: i64) -> Result<usize, String> {
+pub fn batch_add_to_group(
+    app_handle: AppHandle,
+    entry_ids: Vec<i64>,
+    group_id: i64,
+) -> Result<usize, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
@@ -902,7 +967,11 @@ pub fn batch_add_to_group(app_handle: AppHandle, entry_ids: Vec<i64>, group_id: 
 
 /// Batch remove entries from a group
 #[tauri::command]
-pub fn batch_remove_from_group(app_handle: AppHandle, entry_ids: Vec<i64>, group_id: i64) -> Result<usize, String> {
+pub fn batch_remove_from_group(
+    app_handle: AppHandle,
+    entry_ids: Vec<i64>,
+    group_id: i64,
+) -> Result<usize, String> {
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
@@ -947,7 +1016,7 @@ pub fn get_entry(app_handle: AppHandle, id: i64) -> Result<Option<Entry>, String
         .map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
     let result = stmt
-        .query_row(rusqlite::params![id], |row| Entry::from_row(row))
+        .query_row(rusqlite::params![id], Entry::from_row)
         .optional()
         .map_err(|e| format!("Failed to query entry: {}", e))?;
 
@@ -1086,7 +1155,7 @@ pub fn get_all_entries(app_handle: AppHandle) -> Result<Vec<Entry>, String> {
         .map_err(|e| format!("Failed to prepare statement: {}", e))?;
 
     let entries = stmt
-        .query_map([], |row| Entry::from_row(row))
+        .query_map([], Entry::from_row)
         .map_err(|e| format!("Failed to query entries: {}", e))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| format!("Failed to collect entries: {}", e))?;
@@ -1134,7 +1203,7 @@ pub fn search_entries(
         .map_err(|e| format!("Failed to open database: {}", e))?;
 
     let offset_val = offset.unwrap_or(0).max(0);
-    let limit_val = limit.unwrap_or(50).max(1).min(100);
+    let limit_val = limit.unwrap_or(50).clamp(1, 100);
 
     // First get total count
     let total_count: i64 = conn

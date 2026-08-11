@@ -34,10 +34,7 @@ pub fn run() {
 
     // Handle --version flag
     if cli_args.version {
-        println!(
-            "LNK File Management Center v{}",
-            env!("CARGO_PKG_VERSION")
-        );
+        println!("LNK File Management Center v{}", env!("CARGO_PKG_VERSION"));
         return;
     }
 
@@ -78,8 +75,8 @@ pub fn run() {
                     log::error!("Failed to create tray menu item 'show': {}", e);
                     e
                 })?;
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
-                .map_err(|e| {
+            let quit_item =
+                MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).map_err(|e| {
                     log::error!("Failed to create tray menu item 'quit': {}", e);
                     e
                 })?;
@@ -114,24 +111,22 @@ pub fn run() {
 
             // Handle tray menu item clicks
             let tray_menu_app_handle = app.handle().clone();
-            app.on_menu_event(move |_app_handle, event| {
-                match event.id().as_ref() {
-                    "show" => {
-                        if let Some(window) = tray_menu_app_handle.get_webview_window("main") {
-                            if window.is_visible().unwrap_or(false) {
-                                let _ = window.hide();
-                            } else {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+            app.on_menu_event(move |_app_handle, event| match event.id().as_ref() {
+                "show" => {
+                    if let Some(window) = tray_menu_app_handle.get_webview_window("main") {
+                        if window.is_visible().unwrap_or(false) {
+                            let _ = window.hide();
+                        } else {
+                            let _ = window.show();
+                            let _ = window.set_focus();
                         }
                     }
-                    "quit" => {
-                        log::info!("Quit requested from tray menu");
-                        tray_menu_app_handle.exit(0);
-                    }
-                    _ => {}
                 }
+                "quit" => {
+                    log::info!("Quit requested from tray menu");
+                    tray_menu_app_handle.exit(0);
+                }
+                _ => {}
             });
 
             // Initialize hotkey manager
@@ -279,7 +274,7 @@ pub fn run() {
             commands::get_all_entries,
             commands::search_entries,
             commands::open_lnk_file,
-          ])
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

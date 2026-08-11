@@ -53,6 +53,22 @@ npm run build
 npm run type-check
 ```
 
+## Production Build (Tauri)
+
+```bash
+# Build frontend + Rust backend with embedded resources (recommended)
+npx tauri build
+
+# OR build manually (must pass --features custom-protocol for embedded frontend)
+npm run build
+cargo build --release --features custom-protocol
+```
+
+> **Important**: `cargo build --release` alone produces a **broken binary** that tries
+> to connect to `http://localhost:1420` (dev server) and shows "Connection Refused".
+> The `custom-protocol` feature tells Tauri to use the embedded frontend resources
+> (`tauri://localhost`) instead of the dev URL.
+
 ## Integration with Tauri
 
 This frontend will be integrated with a Rust backend using Tauri. The actual Tauri initialization should be done in the root project directory.

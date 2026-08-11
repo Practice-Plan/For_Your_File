@@ -7,7 +7,7 @@ cognitive-complexity-threshold = 25
 too-many-arguments-threshold = 7
 
 # Maximum number of struct fields
-max-struct-bool-amount = 3
+max-struct-bools = 3
 
 # Type complexity threshold
 type-complexity-threshold = 250

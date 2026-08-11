@@ -83,7 +83,9 @@ pub fn parse_deep_link(url: &str) -> Result<ProtocolRequest, ProtocolError> {
         .host_str()
         .or_else(|| {
             // Fallback: try to get action from path segments
-            parsed.path_segments().and_then(|segments| segments.last())
+            parsed
+                .path_segments()
+                .and_then(|mut segments| segments.next_back())
         })
         .map(|s| s.trim_start_matches('/'));
 
@@ -113,9 +115,7 @@ pub fn parse_deep_link(url: &str) -> Result<ProtocolRequest, ProtocolError> {
                     .decode_utf8_lossy()
                     .to_string();
                 // Validate path for security
-                if let Err(e) = validate_path(&decoded) {
-                    return Err(e);
-                }
+                validate_path(&decoded)?;
                 path = Some(decoded);
             }
             "id" => {

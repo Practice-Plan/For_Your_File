@@ -12,7 +12,9 @@ use rusqlite::params;
 #[test]
 fn test_group_lifecycle() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -21,7 +23,8 @@ fn test_group_lifecycle() {
         "INSERT INTO groups (name, color, created_at, updated_at)
          VALUES ('Development', '#FF5733', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create group");
+    )
+    .expect("Failed to create group");
 
     let group_id = conn.last_insert_rowid();
 
@@ -42,7 +45,8 @@ fn test_group_lifecycle() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('vscode.lnk', 'C:\\VSCode.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create entry 1");
+    )
+    .expect("Failed to create entry 1");
 
     let entry1_id = conn.last_insert_rowid();
 
@@ -50,7 +54,8 @@ fn test_group_lifecycle() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('git.lnk', 'C:\\git.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create entry 2");
+    )
+    .expect("Failed to create entry 2");
 
     let entry2_id = conn.last_insert_rowid();
 
@@ -58,12 +63,14 @@ fn test_group_lifecycle() {
     conn.execute(
         "INSERT INTO entry_groups (entry_id, group_id) VALUES (?1, ?2)",
         params![entry1_id, group_id],
-    ).expect("Failed to add entry 1 to group");
+    )
+    .expect("Failed to add entry 1 to group");
 
     conn.execute(
         "INSERT INTO entry_groups (entry_id, group_id) VALUES (?1, ?2)",
         params![entry2_id, group_id],
-    ).expect("Failed to add entry 2 to group");
+    )
+    .expect("Failed to add entry 2 to group");
 
     // Verify associations
     let count: i64 = conn
@@ -80,7 +87,8 @@ fn test_group_lifecycle() {
     conn.execute(
         "DELETE FROM entry_groups WHERE group_id = ?1",
         params![group_id],
-    ).expect("Failed to remove entries from group");
+    )
+    .expect("Failed to remove entries from group");
 
     let count: i64 = conn
         .query_row(
@@ -93,10 +101,8 @@ fn test_group_lifecycle() {
     assert_eq!(count, 0);
 
     // Step 5: Delete group
-    conn.execute(
-        "DELETE FROM groups WHERE id = ?1",
-        params![group_id],
-    ).expect("Failed to delete group");
+    conn.execute("DELETE FROM groups WHERE id = ?1", params![group_id])
+        .expect("Failed to delete group");
 
     let count: i64 = conn
         .query_row("SELECT COUNT(*) FROM groups", [], |row| row.get(0))
@@ -109,7 +115,9 @@ fn test_group_lifecycle() {
 #[test]
 fn test_entry_group_associations() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -118,7 +126,8 @@ fn test_entry_group_associations() {
         "INSERT INTO groups (name, color, created_at, updated_at)
          VALUES ('Work', '#FF0000', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create group 1");
+    )
+    .expect("Failed to create group 1");
 
     let work_group_id = conn.last_insert_rowid();
 
@@ -126,7 +135,8 @@ fn test_entry_group_associations() {
         "INSERT INTO groups (name, color, created_at, updated_at)
          VALUES ('Personal', '#00FF00', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create group 2");
+    )
+    .expect("Failed to create group 2");
 
     let personal_group_id = conn.last_insert_rowid();
 
@@ -135,7 +145,8 @@ fn test_entry_group_associations() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('app.lnk', 'C:\\app.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create entry");
+    )
+    .expect("Failed to create entry");
 
     let entry_id = conn.last_insert_rowid();
 
@@ -143,12 +154,14 @@ fn test_entry_group_associations() {
     conn.execute(
         "INSERT INTO entry_groups (entry_id, group_id) VALUES (?1, ?2)",
         params![entry_id, work_group_id],
-    ).expect("Failed to associate with work group");
+    )
+    .expect("Failed to associate with work group");
 
     conn.execute(
         "INSERT INTO entry_groups (entry_id, group_id) VALUES (?1, ?2)",
         params![entry_id, personal_group_id],
-    ).expect("Failed to associate with personal group");
+    )
+    .expect("Failed to associate with personal group");
 
     // Verify entry belongs to both groups
     let group_count: i64 = conn
@@ -179,7 +192,9 @@ fn test_entry_group_associations() {
 #[test]
 fn test_batch_add_to_group() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -188,7 +203,8 @@ fn test_batch_add_to_group() {
         "INSERT INTO groups (name, color, created_at, updated_at)
          VALUES ('Test Group', '#0000FF', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create group");
+    )
+    .expect("Failed to create group");
 
     let group_id = conn.last_insert_rowid();
 
@@ -204,7 +220,8 @@ fn test_batch_add_to_group() {
                 now,
                 now
             ],
-        ).expect(&format!("Failed to create entry {}", i));
+        )
+        .expect(&format!("Failed to create entry {}", i));
 
         entry_ids.push(conn.last_insert_rowid());
     }
@@ -214,7 +231,8 @@ fn test_batch_add_to_group() {
         conn.execute(
             "INSERT OR IGNORE INTO entry_groups (entry_id, group_id) VALUES (?1, ?2)",
             params![entry_id, group_id],
-        ).expect("Failed to add entry to group");
+        )
+        .expect("Failed to add entry to group");
     }
 
     // Verify all entries are in the group
@@ -233,7 +251,9 @@ fn test_batch_add_to_group() {
 #[test]
 fn test_batch_remove_from_group() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -242,7 +262,8 @@ fn test_batch_remove_from_group() {
         "INSERT INTO groups (name, color, created_at, updated_at)
          VALUES ('Test Group', '#0000FF', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create group");
+    )
+    .expect("Failed to create group");
 
     let group_id = conn.last_insert_rowid();
 
@@ -258,7 +279,8 @@ fn test_batch_remove_from_group() {
                 now,
                 now
             ],
-        ).expect(&format!("Failed to create entry {}", i));
+        )
+        .expect(&format!("Failed to create entry {}", i));
 
         let entry_id = conn.last_insert_rowid();
         entry_ids.push(entry_id);
@@ -266,7 +288,8 @@ fn test_batch_remove_from_group() {
         conn.execute(
             "INSERT INTO entry_groups (entry_id, group_id) VALUES (?1, ?2)",
             params![entry_id, group_id],
-        ).expect("Failed to add entry to group");
+        )
+        .expect("Failed to add entry to group");
     }
 
     // Batch remove first 2 entries from group
@@ -274,7 +297,8 @@ fn test_batch_remove_from_group() {
         conn.execute(
             "DELETE FROM entry_groups WHERE entry_id = ?1 AND group_id = ?2",
             params![entry_id, group_id],
-        ).expect("Failed to remove entry from group");
+        )
+        .expect("Failed to remove entry from group");
     }
 
     // Verify remaining entries
@@ -293,7 +317,9 @@ fn test_batch_remove_from_group() {
 #[test]
 fn test_group_export() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -302,7 +328,8 @@ fn test_group_export() {
         "INSERT INTO groups (name, color, created_at, updated_at)
          VALUES ('Export Test', '#123456', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create group");
+    )
+    .expect("Failed to create group");
 
     let group_id = conn.last_insert_rowid();
 
@@ -318,7 +345,8 @@ fn test_group_export() {
                 now,
                 now
             ],
-        ).expect(&format!("Failed to create entry {}", i));
+        )
+        .expect(&format!("Failed to create entry {}", i));
 
         let entry_id = conn.last_insert_rowid();
         entry_ids.push(entry_id);
@@ -326,7 +354,8 @@ fn test_group_export() {
         conn.execute(
             "INSERT INTO entry_groups (entry_id, group_id) VALUES (?1, ?2)",
             params![entry_id, group_id],
-        ).expect("Failed to add entry to group");
+        )
+        .expect("Failed to add entry to group");
     }
 
     // Simulate export by querying group data
@@ -359,7 +388,9 @@ fn test_group_export() {
 #[test]
 fn test_group_import() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -375,7 +406,8 @@ fn test_group_import() {
                 now,
                 now
             ],
-        ).expect(&format!("Failed to create entry {}", i));
+        )
+        .expect(&format!("Failed to create entry {}", i));
 
         entry_ids.push(conn.last_insert_rowid());
     }
@@ -385,7 +417,8 @@ fn test_group_import() {
         "INSERT INTO groups (name, color, created_at, updated_at)
          VALUES ('Imported Group', '#ABCDEF', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create imported group");
+    )
+    .expect("Failed to create imported group");
 
     let imported_group_id = conn.last_insert_rowid();
 
@@ -405,7 +438,8 @@ fn test_group_import() {
             conn.execute(
                 "INSERT OR IGNORE INTO entry_groups (entry_id, group_id) VALUES (?1, ?2)",
                 params![entry_id, imported_group_id],
-            ).expect("Failed to add entry to imported group");
+            )
+            .expect("Failed to add entry to imported group");
         }
     }
 
@@ -425,7 +459,9 @@ fn test_group_import() {
 #[test]
 fn test_group_uniqueness() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -434,7 +470,8 @@ fn test_group_uniqueness() {
         "INSERT INTO groups (name, color, created_at, updated_at)
          VALUES ('Unique Group', '#000000', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create group");
+    )
+    .expect("Failed to create group");
 
     // Try to create duplicate group (should fail due to UNIQUE constraint on name)
     let result = conn.execute(
@@ -450,7 +487,9 @@ fn test_group_uniqueness() {
 #[test]
 fn test_entry_group_cascade_delete() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -459,7 +498,8 @@ fn test_entry_group_cascade_delete() {
         "INSERT INTO groups (name, color, created_at, updated_at)
          VALUES ('Test Group', '#0000FF', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create group");
+    )
+    .expect("Failed to create group");
 
     let group_id = conn.last_insert_rowid();
 
@@ -468,7 +508,8 @@ fn test_entry_group_cascade_delete() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('app.lnk', 'C:\\app.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to create entry");
+    )
+    .expect("Failed to create entry");
 
     let entry_id = conn.last_insert_rowid();
 
@@ -476,13 +517,12 @@ fn test_entry_group_cascade_delete() {
     conn.execute(
         "INSERT INTO entry_groups (entry_id, group_id) VALUES (?1, ?2)",
         params![entry_id, group_id],
-    ).expect("Failed to add entry to group");
+    )
+    .expect("Failed to add entry to group");
 
     // Delete entry (should cascade delete from entry_groups)
-    conn.execute(
-        "DELETE FROM entries WHERE id = ?1",
-        params![entry_id],
-    ).expect("Failed to delete entry");
+    conn.execute("DELETE FROM entries WHERE id = ?1", params![entry_id])
+        .expect("Failed to delete entry");
 
     // Verify association was deleted
     let count: i64 = conn

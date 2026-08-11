@@ -107,17 +107,15 @@ impl HotkeyManager {
     #[cfg(windows)]
     pub fn register(&self, modifiers: &str, key: &str) -> Result<(), String> {
         use windows::Win32::Foundation::HWND;
-        use windows::Win32::UI::Input::KeyboardAndMouse::{
-            RegisterHotKey, HOT_KEY_MODIFIERS,
-        };
+        use windows::Win32::UI::Input::KeyboardAndMouse::{RegisterHotKey, HOT_KEY_MODIFIERS};
 
         // Parse modifiers
         let mut mod_flags = HOT_KEY_MODIFIERS(0);
         for mod_str in modifiers.split('+').map(|s| s.trim().to_uppercase()) {
             match mod_str.as_str() {
-                "ALT" => mod_flags |= HOT_KEY_MODIFIERS(1),      // MOD_ALT
+                "ALT" => mod_flags |= HOT_KEY_MODIFIERS(1), // MOD_ALT
                 "CTRL" | "CONTROL" => mod_flags |= HOT_KEY_MODIFIERS(2), // MOD_CONTROL
-                "SHIFT" => mod_flags |= HOT_KEY_MODIFIERS(4),    // MOD_SHIFT
+                "SHIFT" => mod_flags |= HOT_KEY_MODIFIERS(4), // MOD_SHIFT
                 "WIN" | "WINDOWS" => mod_flags |= HOT_KEY_MODIFIERS(8), // MOD_WIN
                 _ => log::warn!("Unknown modifier: {}", mod_str),
             }

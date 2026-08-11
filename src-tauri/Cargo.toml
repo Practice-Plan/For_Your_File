@@ -3,7 +3,7 @@ name = "app"
 version = "0.0.1"
 description = "A Tauri App"
 authors = ["you"]
-license = "GPL-3.0"
+license = "MIT"
 repository = ""
 edition = "2021"
 rust-version = "1.77.2"
@@ -13,6 +13,13 @@ rust-version = "1.77.2"
 [lib]
 name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# This feature is used for production builds to enable the embedded frontend
+# (tauri://localhost) instead of connecting to the dev server (devUrl).
+# `tauri build` enables this automatically; `cargo build --release` must pass
+# `--features custom-protocol` to get a working production binary.
+custom-protocol = ["tauri/custom-protocol"]
 
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }

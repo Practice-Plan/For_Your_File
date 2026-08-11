@@ -31,7 +31,12 @@ impl ExpirationTimer {
     }
 
     /// Start the background timer
-    pub fn start(&self, app_handle: AppHandle, config: ExpirationConfig, conn: rusqlite::Connection) {
+    pub fn start(
+        &self,
+        app_handle: AppHandle,
+        config: ExpirationConfig,
+        conn: rusqlite::Connection,
+    ) {
         if self.running.swap(true, Ordering::SeqCst) {
             warn!("Expiration timer is already running");
             return;
@@ -78,7 +83,10 @@ impl ExpirationTimer {
     /// Perform a single expiration check
     fn perform_check(manager: &ExpirationManager, app_handle: &AppHandle) -> anyhow::Result<()> {
         let now = Utc::now();
-        info!("Performing expiration check at {}", now.format("%Y-%m-%d %H:%M:%S"));
+        info!(
+            "Performing expiration check at {}",
+            now.format("%Y-%m-%d %H:%M:%S")
+        );
 
         // Check for expired entries
         let expired_entries = manager.check_expired_entries()?;
@@ -90,12 +98,15 @@ impl ExpirationTimer {
 
             // Show notification for each expired entry
             for entry in &expired_entries {
-                app_handle.emit("expiration-notification", ExpirationNotification {
-                    entry_id: entry.id.unwrap_or(0),
-                    entry_name: entry.lnk_path.clone(),
-                    status: "expired".to_string(),
-                    message: format!("Entry '{}' has expired", entry.lnk_path),
-                })?;
+                app_handle.emit(
+                    "expiration-notification",
+                    ExpirationNotification {
+                        entry_id: entry.id.unwrap_or(0),
+                        entry_name: entry.lnk_path.clone(),
+                        status: "expired".to_string(),
+                        message: format!("Entry '{}' has expired", entry.lnk_path),
+                    },
+                )?;
             }
         }
 
@@ -105,20 +116,29 @@ impl ExpirationTimer {
             info!("Found {} entries expiring soon", expiring_soon.len());
 
             // Emit event to frontend
-            app_handle.emit("entries-expiring-soon", &expiring_soon.iter().map(|(e, d)| ExpiringSoonInfo {
-                entry: e.clone(),
-                days_remaining: *d,
-            }).collect::<Vec<_>>())?;
+            app_handle.emit(
+                "entries-expiring-soon",
+                &expiring_soon
+                    .iter()
+                    .map(|(e, d)| ExpiringSoonInfo {
+                        entry: e.clone(),
+                        days_remaining: *d,
+                    })
+                    .collect::<Vec<_>>(),
+            )?;
 
             // Show notification for entries expiring within 3 days
             for (entry, days) in &expiring_soon {
                 if *days <= 3 {
-                    app_handle.emit("expiration-notification", ExpirationNotification {
-                        entry_id: entry.id.unwrap_or(0),
-                        entry_name: entry.lnk_path.clone(),
-                        status: "expiring_soon".to_string(),
-                        message: format!("Entry '{}' expires in {} days", entry.lnk_path, days),
-                    })?;
+                    app_handle.emit(
+                        "expiration-notification",
+                        ExpirationNotification {
+                            entry_id: entry.id.unwrap_or(0),
+                            entry_name: entry.lnk_path.clone(),
+                            status: "expiring_soon".to_string(),
+                            message: format!("Entry '{}' expires in {} days", entry.lnk_path, days),
+                        },
+                    )?;
                 }
             }
         }

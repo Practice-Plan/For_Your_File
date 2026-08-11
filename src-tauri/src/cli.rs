@@ -188,10 +188,7 @@ mod tests {
             OsString::from("filemgmt://open?id=123"),
         ];
         let parsed = CliArgs::parse_from(args);
-        assert_eq!(
-            parsed.deep_link,
-            Some("filemgmt://open?id=123".to_string())
-        );
+        assert_eq!(parsed.deep_link, Some("filemgmt://open?id=123".to_string()));
     }
 
     #[test]

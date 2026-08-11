@@ -12,7 +12,9 @@ use rusqlite::params;
 #[test]
 fn test_basic_search() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -21,13 +23,15 @@ fn test_basic_search() {
         "INSERT INTO entries (lnk_path, target_path, tags, notes, created_at, updated_at)
          VALUES ('vscode.lnk', 'C:\\VSCode\\Code.exe', 'editor,ide', 'Code editor', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 1");
+    )
+    .expect("Failed to insert entry 1");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, tags, notes, created_at, updated_at)
          VALUES ('chrome.lnk', 'C:\\Chrome\\chrome.exe', 'browser', 'Web browser', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 2");
+    )
+    .expect("Failed to insert entry 2");
 
     // Test search by path
     let results: Vec<String> = conn
@@ -58,7 +62,9 @@ fn test_basic_search() {
 #[test]
 fn test_search_ranking_by_frequency() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -67,19 +73,22 @@ fn test_search_ranking_by_frequency() {
         "INSERT INTO entries (lnk_path, target_path, frequency, created_at, updated_at)
          VALUES ('low_freq.lnk', 'C:\\low.exe', 1, ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 1");
+    )
+    .expect("Failed to insert entry 1");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, frequency, created_at, updated_at)
          VALUES ('high_freq.lnk', 'C:\\high.exe', 100, ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 2");
+    )
+    .expect("Failed to insert entry 2");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, frequency, created_at, updated_at)
          VALUES ('medium_freq.lnk', 'C:\\medium.exe', 50, ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 3");
+    )
+    .expect("Failed to insert entry 3");
 
     // Query ordered by frequency
     let results: Vec<String> = conn
@@ -100,7 +109,9 @@ fn test_search_ranking_by_frequency() {
 #[test]
 fn test_multi_criteria_search() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -144,7 +155,9 @@ fn test_multi_criteria_search() {
 #[test]
 fn test_case_insensitive_search() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -153,7 +166,8 @@ fn test_case_insensitive_search() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('VSCode.lnk', 'C:\\VSCode\\Code.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     // Test different case queries
     let test_cases = vec!["%vscode%", "%VSCODE%", "%VsCoDe%"];
@@ -175,7 +189,9 @@ fn test_case_insensitive_search() {
 #[test]
 fn test_search_empty_results() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -184,7 +200,8 @@ fn test_search_empty_results() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('test.lnk', 'C:\\test.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     // Search for non-existent entry
     let results: Vec<String> = conn
@@ -202,7 +219,9 @@ fn test_search_empty_results() {
 #[test]
 fn test_search_performance() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -217,7 +236,8 @@ fn test_search_performance() {
                 now,
                 now
             ],
-        ).expect(&format!("Failed to insert entry {}", i));
+        )
+        .expect(&format!("Failed to insert entry {}", i));
     }
 
     // Measure search time
@@ -234,7 +254,11 @@ fn test_search_performance() {
     let duration = start.elapsed();
 
     // Search should complete quickly (less than 100ms)
-    assert!(duration.as_millis() < 100, "Search took too long: {:?}", duration);
+    assert!(
+        duration.as_millis() < 100,
+        "Search took too long: {:?}",
+        duration
+    );
 
     // Should find results (app5, app50-59, app500-599)
     assert!(results.len() > 0);
@@ -244,7 +268,9 @@ fn test_search_performance() {
 #[test]
 fn test_search_special_characters() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -253,13 +279,15 @@ fn test_search_special_characters() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('test.lnk', 'C:\\Program Files (x86)\\App\\app.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 1");
+    )
+    .expect("Failed to insert entry 1");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('test2.lnk', 'C:\\Users\\User Name\\App.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 2");
+    )
+    .expect("Failed to insert entry 2");
 
     // Search for path with parentheses
     let results: Vec<String> = conn
@@ -290,7 +318,9 @@ fn test_search_special_characters() {
 #[test]
 fn test_search_ordering_by_last_opened() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let base_time = chrono::Utc::now().timestamp();
 
@@ -299,19 +329,22 @@ fn test_search_ordering_by_last_opened() {
         "INSERT INTO entries (lnk_path, target_path, last_opened, created_at, updated_at)
          VALUES ('old.lnk', 'C:\\old.exe', ?1, ?2, ?2)",
         params![base_time - 3600, base_time], // 1 hour ago
-    ).expect("Failed to insert entry 1");
+    )
+    .expect("Failed to insert entry 1");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, last_opened, created_at, updated_at)
          VALUES ('recent.lnk', 'C:\\recent.exe', ?1, ?2, ?2)",
         params![base_time - 60, base_time], // 1 minute ago
-    ).expect("Failed to insert entry 2");
+    )
+    .expect("Failed to insert entry 2");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, last_opened, created_at, updated_at)
          VALUES ('never.lnk', 'C:\\never.exe', NULL, ?1, ?1)",
         params![base_time],
-    ).expect("Failed to insert entry 3");
+    )
+    .expect("Failed to insert entry 3");
 
     // Query ordered by last_opened (most recent first, NULL last)
     let results: Vec<String> = conn
@@ -333,7 +366,9 @@ fn test_search_ordering_by_last_opened() {
 #[test]
 fn test_partial_match_search() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -342,13 +377,15 @@ fn test_partial_match_search() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('vscode.lnk', 'C:\\VSCode\\Code.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('visual_studio.lnk', 'C:\\Visual Studio\\devenv.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     // Search for partial match
     let results: Vec<String> = conn

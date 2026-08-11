@@ -49,7 +49,9 @@ impl MockCloudStorage {
 #[test]
 fn test_file_watcher_detects_changes() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -61,11 +63,17 @@ fn test_file_watcher_detects_changes() {
          VALUES (?1, ?2, ?3, ?4)",
         params![
             lnk_path.to_string_lossy().to_string(),
-            fixture.temp_dir.path().join("test.exe").to_string_lossy().to_string(),
+            fixture
+                .temp_dir
+                .path()
+                .join("test.exe")
+                .to_string_lossy()
+                .to_string(),
             now,
             now
         ],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     // Simulate file modification by checking timestamp
     let original_updated_at: i64 = conn
@@ -82,11 +90,9 @@ fn test_file_watcher_detects_changes() {
 
     conn.execute(
         "UPDATE entries SET notes = 'modified', updated_at = ?1 WHERE lnk_path = ?2",
-        params![
-            new_updated_at,
-            lnk_path.to_string_lossy().to_string()
-        ],
-    ).expect("Failed to update entry");
+        params![new_updated_at, lnk_path.to_string_lossy().to_string()],
+    )
+    .expect("Failed to update entry");
 
     // Verify the change was detected
     let current_updated_at: i64 = conn
@@ -105,7 +111,9 @@ fn test_file_watcher_detects_changes() {
 fn test_sync_to_cloud() {
     let fixture = TestFixture::new();
     let cloud = MockCloudStorage::new(&fixture.temp_dir);
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -114,13 +122,15 @@ fn test_sync_to_cloud() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('app1.lnk', 'C:\\app1.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 1");
+    )
+    .expect("Failed to insert entry 1");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('app2.lnk', 'C:\\app2.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 2");
+    )
+    .expect("Failed to insert entry 2");
 
     // Export database to cloud
     let db_content = fs::read(fixture.database_path()).expect("Failed to read database");
@@ -140,7 +150,9 @@ fn test_sync_from_cloud() {
     let cloud = MockCloudStorage::new(&fixture.temp_dir);
 
     // Create a database in the cloud
-    let cloud_conn = fixture.create_test_database().expect("Failed to create database");
+    let cloud_conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
     let now = chrono::Utc::now().timestamp();
 
     cloud_conn
@@ -171,7 +183,9 @@ fn test_sync_from_cloud() {
     assert_eq!(initial_count, 0);
 
     // Download from cloud
-    let cloud_data = cloud.download("database.db").expect("Failed to download from cloud");
+    let cloud_data = cloud
+        .download("database.db")
+        .expect("Failed to download from cloud");
 
     // Write to local database path (simulating sync)
     fs::write(local_fixture.database_path(), &cloud_data).expect("Failed to write database");
@@ -191,7 +205,9 @@ fn test_sync_from_cloud() {
 #[test]
 fn test_conflict_detection() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -200,7 +216,8 @@ fn test_conflict_detection() {
         "INSERT INTO entries (lnk_path, target_path, notes, created_at, updated_at)
          VALUES ('shared.lnk', 'C:\\shared.exe', 'local notes', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     let entry_id = conn.last_insert_rowid();
 
@@ -216,14 +233,19 @@ fn test_conflict_detection() {
 
     // Detect conflict
     let has_conflict = local_notes != cloud_notes;
-    assert!(has_conflict, "Should detect conflict between local and cloud versions");
+    assert!(
+        has_conflict,
+        "Should detect conflict between local and cloud versions"
+    );
 }
 
 /// Test conflict resolution
 #[test]
 fn test_conflict_resolution() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -232,7 +254,8 @@ fn test_conflict_resolution() {
         "INSERT INTO entries (lnk_path, target_path, notes, created_at, updated_at)
          VALUES ('conflict.lnk', 'C:\\conflict.exe', 'local version', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     let entry_id = conn.last_insert_rowid();
 
@@ -240,7 +263,8 @@ fn test_conflict_resolution() {
     conn.execute(
         "UPDATE entries SET notes = 'cloud version', updated_at = ?1 WHERE id = ?2",
         params![chrono::Utc::now().timestamp(), entry_id],
-    ).expect("Failed to resolve conflict");
+    )
+    .expect("Failed to resolve conflict");
 
     // Verify resolution
     let resolved_notes: String = conn
@@ -258,7 +282,9 @@ fn test_conflict_resolution() {
 #[test]
 fn test_offline_mode_handling() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -267,13 +293,15 @@ fn test_offline_mode_handling() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('offline1.lnk', 'C:\\offline1.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert offline entry 1");
+    )
+    .expect("Failed to insert offline entry 1");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('offline2.lnk', 'C:\\offline2.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert offline entry 2");
+    )
+    .expect("Failed to insert offline entry 2");
 
     // Track pending changes (simulated)
     let pending_count: i64 = conn
@@ -328,7 +356,9 @@ fn test_bidirectional_sync() {
         .expect("Failed to insert device2 entry");
 
     // Sync device 2 from cloud (would merge entries in real implementation)
-    let cloud_data = cloud.download("database.db").expect("Failed to download from cloud");
+    let cloud_data = cloud
+        .download("database.db")
+        .expect("Failed to download from cloud");
 
     // In a real implementation, this would merge the databases
     // For testing, we just verify the cloud data exists
@@ -339,7 +369,9 @@ fn test_bidirectional_sync() {
 #[test]
 fn test_sync_status_tracking() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -348,7 +380,8 @@ fn test_sync_status_tracking() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('test.lnk', 'C:\\test.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     // Query sync status (simulated - in real app would have sync_status column)
     let needs_sync = true; // Would be determined by checking if updated_at > last_sync_at
@@ -361,7 +394,9 @@ fn test_sync_status_tracking() {
 fn test_full_sync_operation() {
     let fixture = TestFixture::new();
     let cloud = MockCloudStorage::new(&fixture.temp_dir);
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -376,7 +411,8 @@ fn test_full_sync_operation() {
                 now,
                 now
             ],
-        ).expect(&format!("Failed to insert entry {}", i));
+        )
+        .expect(&format!("Failed to insert entry {}", i));
     }
 
     // Perform full sync (upload)
@@ -389,6 +425,12 @@ fn test_full_sync_operation() {
     let cloud_files = cloud.list_files().expect("Failed to list cloud files");
     assert!(cloud_files.contains(&"database.db".to_string()));
 
-    let cloud_data = cloud.download("database.db").expect("Failed to download database");
-    assert_eq!(cloud_data.len(), db_content.len(), "Synced data should match");
+    let cloud_data = cloud
+        .download("database.db")
+        .expect("Failed to download database");
+    assert_eq!(
+        cloud_data.len(),
+        db_content.len(),
+        "Synced data should match"
+    );
 }

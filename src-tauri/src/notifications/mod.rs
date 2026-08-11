@@ -59,10 +59,7 @@ pub fn show_expiring_soon_notification(
     entry_id: i64,
 ) -> Result<()> {
     let title = "LNK File Expiring Soon";
-    let body = format!(
-        "'{}' will expire in {} day(s).",
-        entry_name, days_remaining
-    );
+    let body = format!("'{}' will expire in {} day(s).", entry_name, days_remaining);
 
     app.notification()
         .builder()
@@ -134,7 +131,11 @@ pub fn show_extension_notification(app: &AppHandle, entry_name: &str, days: i32)
 
 #[cfg(not(windows))]
 pub fn show_expired_notification(app: &AppHandle, entry_name: &str, entry_id: i64) -> Result<()> {
-    log::info!("Expired notification (non-Windows): {} - {}", entry_name, entry_id);
+    log::info!(
+        "Expired notification (non-Windows): {} - {}",
+        entry_name,
+        entry_id
+    );
     Ok(())
 }
 

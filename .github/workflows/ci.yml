@@ -19,6 +19,18 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Type-check frontend
+        run: npm run type-check
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -30,7 +42,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Run tests
+      - name: Run Rust tests
         run: cargo test --verbose
 
       - name: Run clippy
@@ -38,3 +50,9 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt -- --check
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build production binary
+        run: cargo build --release --features custom-protocol

@@ -14,7 +14,9 @@ use tempfile::TempDir;
 #[test]
 fn test_entry_lifecycle_workflow() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     // Step 1: Create entries for different file types
     let exe_lnk = fixture.create_exe_lnk("vscode", "Code.exe");
@@ -28,11 +30,17 @@ fn test_entry_lifecycle_workflow() {
          VALUES (?1, ?2, 'exe', ?3, ?4)",
         params![
             exe_lnk.to_string_lossy().to_string(),
-            fixture.temp_dir.path().join("Code.exe").to_string_lossy().to_string(),
+            fixture
+                .temp_dir
+                .path()
+                .join("Code.exe")
+                .to_string_lossy()
+                .to_string(),
             now,
             now
         ],
-    ).expect("Failed to insert exe entry");
+    )
+    .expect("Failed to insert exe entry");
     let exe_id = conn.last_insert_rowid();
 
     // Insert entry for document
@@ -41,11 +49,17 @@ fn test_entry_lifecycle_workflow() {
          VALUES (?1, ?2, 'doc', ?3, ?4)",
         params![
             doc_lnk.to_string_lossy().to_string(),
-            fixture.temp_dir.path().join("README.md").to_string_lossy().to_string(),
+            fixture
+                .temp_dir
+                .path()
+                .join("README.md")
+                .to_string_lossy()
+                .to_string(),
             now,
             now
         ],
-    ).expect("Failed to insert doc entry");
+    )
+    .expect("Failed to insert doc entry");
     let doc_id = conn.last_insert_rowid();
 
     // Insert entry for folder
@@ -54,11 +68,17 @@ fn test_entry_lifecycle_workflow() {
          VALUES (?1, ?2, 'folder', ?3, ?4)",
         params![
             folder_lnk.to_string_lossy().to_string(),
-            fixture.temp_dir.path().join("Projects").to_string_lossy().to_string(),
+            fixture
+                .temp_dir
+                .path()
+                .join("Projects")
+                .to_string_lossy()
+                .to_string(),
             now,
             now
         ],
-    ).expect("Failed to insert folder entry");
+    )
+    .expect("Failed to insert folder entry");
     let folder_id = conn.last_insert_rowid();
 
     // Step 2: Search for entries
@@ -79,7 +99,8 @@ fn test_entry_lifecycle_workflow() {
     conn.execute(
         "UPDATE entries SET frequency = frequency + 1, last_opened = ?1 WHERE id = ?2",
         params![chrono::Utc::now().timestamp(), exe_id],
-    ).expect("Failed to update frequency");
+    )
+    .expect("Failed to update frequency");
 
     let frequency: i32 = conn
         .query_row(
@@ -94,8 +115,14 @@ fn test_entry_lifecycle_workflow() {
     // Step 4: Update entry
     conn.execute(
         "UPDATE entries SET tags = ?1, notes = ?2, updated_at = ?3 WHERE id = ?4",
-        params!["editor,development", "Main code editor", chrono::Utc::now().timestamp(), exe_id],
-    ).expect("Failed to update entry");
+        params![
+            "editor,development",
+            "Main code editor",
+            chrono::Utc::now().timestamp(),
+            exe_id
+        ],
+    )
+    .expect("Failed to update entry");
 
     let (tags, notes): (String, String) = conn
         .query_row(
@@ -136,7 +163,9 @@ fn test_entry_lifecycle_workflow() {
 #[test]
 fn test_entry_creation_different_types() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     // Create entries for different file types
     let test_cases = vec![
@@ -161,7 +190,8 @@ fn test_entry_creation_different_types() {
                 now,
                 now
             ],
-        ).expect(&format!("Failed to insert {} entry", file_type));
+        )
+        .expect(&format!("Failed to insert {} entry", file_type));
     }
 
     // Verify all entries were created
@@ -189,7 +219,9 @@ fn test_entry_creation_different_types() {
 #[test]
 fn test_entry_search() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -198,19 +230,22 @@ fn test_entry_search() {
         "INSERT INTO entries (lnk_path, target_path, tags, notes, created_at, updated_at)
          VALUES ('vscode.lnk', 'C:\\VSCode\\Code.exe', 'editor,ide', 'Main editor', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 1");
+    )
+    .expect("Failed to insert entry 1");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, tags, notes, created_at, updated_at)
          VALUES ('chrome.lnk', 'C:\\Chrome\\chrome.exe', 'browser,web', 'Web browser', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 2");
+    )
+    .expect("Failed to insert entry 2");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, tags, notes, created_at, updated_at)
          VALUES ('spotify.lnk', 'C:\\Spotify\\spotify.exe', 'music,media', 'Music player', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry 3");
+    )
+    .expect("Failed to insert entry 3");
 
     // Test search by target path
     let results: Vec<String> = conn
@@ -253,7 +288,9 @@ fn test_entry_search() {
 #[test]
 fn test_entry_update_tracking() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let created_at = chrono::Utc::now().timestamp();
 
@@ -262,7 +299,8 @@ fn test_entry_update_tracking() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('test.lnk', 'C:\\test.exe', ?1, ?2)",
         params![created_at, created_at],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     let id = conn.last_insert_rowid();
 
@@ -274,7 +312,8 @@ fn test_entry_update_tracking() {
     conn.execute(
         "UPDATE entries SET notes = 'updated', updated_at = ?1 WHERE id = ?2",
         params![updated_at, id],
-    ).expect("Failed to update entry");
+    )
+    .expect("Failed to update entry");
 
     // Verify timestamps differ
     let (created, updated): (i64, i64) = conn
@@ -285,7 +324,10 @@ fn test_entry_update_tracking() {
         )
         .expect("Failed to query timestamps");
 
-    assert!(updated > created, "Updated timestamp should be greater than created");
+    assert!(
+        updated > created,
+        "Updated timestamp should be greater than created"
+    );
     assert_eq!(created, created_at);
     assert_eq!(updated, updated_at);
 }
@@ -294,7 +336,9 @@ fn test_entry_update_tracking() {
 #[test]
 fn test_frequency_tracking() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -303,7 +347,8 @@ fn test_frequency_tracking() {
         "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
          VALUES ('test.lnk', 'C:\\test.exe', ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     let id = conn.last_insert_rowid();
 
@@ -312,7 +357,8 @@ fn test_frequency_tracking() {
         conn.execute(
             "UPDATE entries SET frequency = frequency + 1, last_opened = ?1 WHERE id = ?2",
             params![chrono::Utc::now().timestamp(), id],
-        ).expect("Failed to update frequency");
+        )
+        .expect("Failed to update frequency");
     }
 
     // Verify frequency
@@ -331,7 +377,9 @@ fn test_frequency_tracking() {
 #[test]
 fn test_entry_ordering_by_frequency() {
     let fixture = TestFixture::new();
-    let conn = fixture.create_test_database().expect("Failed to create database");
+    let conn = fixture
+        .create_test_database()
+        .expect("Failed to create database");
 
     let now = chrono::Utc::now().timestamp();
 
@@ -340,19 +388,22 @@ fn test_entry_ordering_by_frequency() {
         "INSERT INTO entries (lnk_path, target_path, frequency, created_at, updated_at)
          VALUES ('low.lnk', 'C:\\low.exe', 1, ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, frequency, created_at, updated_at)
          VALUES ('high.lnk', 'C:\\high.exe', 10, ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     conn.execute(
         "INSERT INTO entries (lnk_path, target_path, frequency, created_at, updated_at)
          VALUES ('medium.lnk', 'C:\\medium.exe', 5, ?1, ?2)",
         params![now, now],
-    ).expect("Failed to insert entry");
+    )
+    .expect("Failed to insert entry");
 
     // Query ordered by frequency
     let lnk_paths: Vec<String> = conn
