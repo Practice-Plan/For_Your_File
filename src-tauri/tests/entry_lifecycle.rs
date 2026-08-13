@@ -290,8 +290,8 @@ fn test_entry_update_tracking() {
 
     let id = conn.last_insert_rowid();
 
-    // Wait a moment before update
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    // Wait for timestamp to change (seconds precision)
+    std::thread::sleep(std::time::Duration::from_millis(1100));
 
     // Update entry
     let updated_at = chrono::Utc::now().timestamp();
