@@ -15,6 +15,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::Mutex;
 use std::time::Duration;
+use tauri::Manager;
 
 // ---------------------------------------------------------------------------
 // Constants

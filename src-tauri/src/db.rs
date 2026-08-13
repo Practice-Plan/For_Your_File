@@ -5,7 +5,7 @@
 //! and must ensure the schema exists before any command runs.
 
 use rusqlite::Connection;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 /// Get the database path inside the app data directory, creating the directory if needed.
 ///
