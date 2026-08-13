@@ -1102,6 +1102,11 @@ pub fn create_entry(app_handle: AppHandle, entry: Entry) -> Result<Entry, String
 
     let id = conn.last_insert_rowid();
 
+    // Rebuild FTS index to ensure the new entry is searchable
+    if let Err(e) = rebuild_fts_index(app_handle) {
+        log::warn!("Failed to rebuild FTS index after create_entry: {}", e);
+    }
+
     let mut created_entry = entry;
     created_entry.id = Some(id);
     created_entry.created_at = now;
@@ -1151,6 +1156,11 @@ pub fn update_entry(app_handle: AppHandle, id: i64, entry: Entry) -> Result<Entr
     )
     .map_err(|e| format!("Failed to update entry: {}", e))?;
 
+    // Rebuild FTS index to ensure the updated entry is searchable
+    if let Err(e) = rebuild_fts_index(app_handle) {
+        log::warn!("Failed to rebuild FTS index after update_entry: {}", e);
+    }
+
     let mut updated_entry = entry;
     updated_entry.id = Some(id);
     updated_entry.updated_at = now;
@@ -1166,6 +1176,11 @@ pub fn delete_entry(app_handle: AppHandle, id: i64) -> Result<(), String> {
 
     conn.execute("DELETE FROM entries WHERE id = ?1", rusqlite::params![id])
         .map_err(|e| format!("Failed to delete entry: {}", e))?;
+
+    // Rebuild FTS index to ensure the deleted entry is no longer searchable
+    if let Err(e) = rebuild_fts_index(app_handle) {
+        log::warn!("Failed to rebuild FTS index after delete_entry: {}", e);
+    }
 
     Ok(())
 }
