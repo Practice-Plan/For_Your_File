@@ -103,5 +103,5 @@ jobs:
         with:
           name: ${{ matrix.arch }}-installer
           path: |
-            src-tauri/target/${{ matrix.target }}/release/*.exe
+            D:\a\For_Your_File\For_Your_File\target\${{ matrix.target }}\release\*.exe
           if-no-files-found: warn
