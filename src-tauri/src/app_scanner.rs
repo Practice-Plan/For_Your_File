@@ -251,9 +251,9 @@ fn parse_lnk_files(lnk_files: Vec<PathBuf>) -> Vec<InstalledApp> {
 
 /// Extract an application icon as a base64-encoded PNG string.
 ///
-/// Uses native Windows API (ExtractIconExW + GDI) to extract the icon directly,
-/// avoiding PowerShell startup overhead. The icon is converted to RGBA pixels
-/// via GDI, then encoded as PNG using the `image` crate.
+/// Uses native Windows API: SHGetFileInfoW to extract the icon handle,
+/// GetIconInfo + GetDIBits to read pixel data directly from the icon bitmap.
+/// No PowerShell subprocess needed — runs entirely in-process.
 ///
 /// Supports disk caching: if `cache_dir` is provided, the function checks for
 /// a cached icon first (validated by exe modification time). On cache miss,
@@ -277,13 +277,12 @@ pub fn extract_icon_as_base64(
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows::core::PCWSTR;
-    use windows::Win32::Foundation::HWND;
     use windows::Win32::Graphics::Gdi::{
-        CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, ReleaseDC, SelectObject,
+        CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BITMAP, BITMAPINFO,
+        BITMAPINFOHEADER, DIB_RGB_COLORS,
     };
-    use windows::Win32::UI::WindowsAndMessaging::{
-        DestroyIcon, ExtractIconExW, GetIconInfo, ICONINFO,
-    };
+    use windows::Win32::UI::Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
+    use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, ICONINFO};
 
     // Convert path to wide string
     let wide_path: Vec<u16> = OsStr::new(exe_path)
@@ -291,126 +290,122 @@ pub fn extract_icon_as_base64(
         .chain(std::iter::once(0))
         .collect();
 
-    // Extract the large icon (32x32)
-    let mut hicon_large = windows::Win32::Foundation::HICON::default();
-    let mut hicon_small = windows::Win32::Foundation::HICON::default();
-
-    let count = unsafe {
-        ExtractIconExW(
+    // Extract icon handle via SHGetFileInfoW (available in Win32_UI_Shell)
+    let mut shfi = SHFILEINFOW::default();
+    unsafe {
+        SHGetFileInfoW(
             PCWSTR(wide_path.as_ptr()),
-            0,
-            Some(&mut hicon_large),
-            Some(&mut hicon_small),
-            1,
-        )
-    };
+            windows::Win32::Storage::FileSystem::FILE_ATTRIBUTE_NORMAL,
+            Some(&mut shfi),
+            std::mem::size_of::<SHFILEINFOW>() as u32,
+            SHGFI_ICON | SHGFI_LARGEICON,
+        );
+    }
 
-    if count == 0 {
+    let hicon = shfi.hIcon;
+    if hicon.is_invalid() {
         return Err("No icon found in executable".to_string());
     }
 
-    // Prefer large icon, fall back to small
-    let hicon = if !hicon_large.is_invalid() {
-        hicon_large
-    } else {
-        hicon_small
-    };
-
-    if hicon.is_invalid() {
-        return Err("Failed to extract icon".to_string());
-    }
-
-    // Get icon info
+    // Get icon bitmap handles
     let mut icon_info = ICONINFO::default();
-    let success = unsafe { GetIconInfo(hicon, &mut icon_info) }.as_bool();
-
-    if !success {
-        unsafe { DestroyIcon(hicon).ok() };
+    if unsafe { GetIconInfo(hicon, &mut icon_info) }.is_err() {
+        let _ = unsafe { DestroyIcon(hicon) };
         return Err("Failed to get icon info".to_string());
     }
 
-    // Get icon dimensions
-    let width = icon_info.xHotspot as u32;
-    let height = icon_info.yHotspot as u32;
+    let hbm_color = icon_info.hbmColor;
+
+    // Get bitmap dimensions via GetObjectW
+    let mut bmp = BITMAP::default();
+    let bmp_size = unsafe {
+        GetObjectW(
+            hbm_color,
+            std::mem::size_of::<BITMAP>() as i32,
+            Some(&mut bmp as *mut _ as *mut _),
+        )
+    };
+
+    if bmp_size == 0 {
+        unsafe {
+            let _ = DeleteObject(icon_info.hbmColor.into());
+            let _ = DeleteObject(icon_info.hbmMask.into());
+            let _ = DestroyIcon(hicon);
+        }
+        return Err("Failed to get bitmap dimensions".to_string());
+    }
+
+    let width = bmp.bmWidth as u32;
+    let height = bmp.bmHeight as u32;
 
     if width == 0 || height == 0 {
         unsafe {
-            DeleteObject(icon_info.hbmColor.into()).ok();
-            DeleteObject(icon_info.hbmMask.into()).ok();
-            DestroyIcon(hicon).ok();
+            let _ = DeleteObject(icon_info.hbmColor.into());
+            let _ = DeleteObject(icon_info.hbmMask.into());
+            let _ = DestroyIcon(hicon);
         }
         return Err("Invalid icon dimensions".to_string());
     }
 
-    // Create a memory DC and bitmap for rendering
-    let hdc_screen = unsafe { windows::Win32::Graphics::Gdi::GetDC(HWND::default()) };
-    let hdc_mem = unsafe { CreateCompatibleDC(hdc_screen) };
-    let hbm_mem = unsafe { CreateCompatibleBitmap(hdc_screen, width as i32, height as i32) };
+    // Read pixels directly from the icon's color bitmap via GetDIBits.
+    // Create a temporary compatible DC (no need for screen DC or DrawIconEx).
+    let hdc = unsafe { CreateCompatibleDC(None) };
+
+    // Build BITMAPINFO for 32-bit top-down BGRA output
+    let mut bmi = BITMAPINFO {
+        bmiHeader: BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: width as i32,
+            biHeight: -(height as i32), // negative = top-down
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: 0, // BI_RGB
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    // pixels must be declared outside unsafe so it's accessible after the block
+    let mut pixels = vec![0u8; (width * height * 4) as usize];
 
     unsafe {
-        let old_bmp = SelectObject(hdc_mem, hbm_mem);
-
-        // Draw the icon onto the bitmap
-        windows::Win32::Graphics::Gdi::DrawIconEx(
-            hdc_mem,
-            0,
-            0,
-            hicon,
-            width as i32,
-            height as i32,
-            0,
-            None,
-            windows::Win32::Graphics::Gdi::DI_NORMAL,
-        )
-        .ok();
-
-        // Read pixels from the bitmap
-        let mut bmi = windows::Win32::Graphics::Gdi::BITMAPINFO {
-            bmiHeader: windows::Win32::Graphics::Gdi::BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<windows::Win32::Graphics::Gdi::BITMAPINFOHEADER>()
-                    as u32,
-                biWidth: width as i32,
-                biHeight: -(height as i32), // Top-down
-                biPlanes: 1,
-                biBitCount: 32,
-                biCompression: windows::Win32::Graphics::Gdi::BI_RGB,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let mut pixels = vec![0u8; (width * height * 4) as usize];
-        windows::Win32::Graphics::Gdi::GetDIBits(
-            hdc_mem,
-            hbm_mem,
+        GetDIBits(
+            hdc,
+            hbm_color,
             0,
             height,
             Some(pixels.as_mut_ptr() as *mut _),
             &mut bmi,
-            windows::Win32::Graphics::Gdi::DIB_RGB_COLORS,
+            DIB_RGB_COLORS,
         );
 
-        // Cleanup
-        SelectObject(hdc_mem, old_bmp);
-        DeleteObject(hbm_mem).ok();
-        DeleteDC(hdc_mem).ok();
-        ReleaseDC(HWND::default(), hdc_screen);
-        DeleteObject(icon_info.hbmColor.into()).ok();
-        DeleteObject(icon_info.hbmMask.into()).ok();
-        DestroyIcon(hicon).ok();
+        // Cleanup GDI resources
+        DeleteDC(hdc).ok();
+        let _ = DeleteObject(icon_info.hbmColor.into());
+        let _ = DeleteObject(icon_info.hbmMask.into());
+        let _ = DestroyIcon(hicon);
     }
 
-    // Convert BGRA to RGBA (Windows GDI returns BGRA)
+    // Convert BGRA to RGBA (Windows GDI returns BGRA order)
+    // Icons may use premultiplied alpha, so un-premultiply for correct display.
     let mut rgba_pixels = vec![0u8; (width * height * 4) as usize];
     for i in 0..(width * height) as usize {
         let b = pixels[i * 4];
         let g = pixels[i * 4 + 1];
         let r = pixels[i * 4 + 2];
         let a = pixels[i * 4 + 3];
-        rgba_pixels[i * 4] = r;
-        rgba_pixels[i * 4 + 1] = g;
-        rgba_pixels[i * 4 + 2] = b;
-        rgba_pixels[i * 4 + 3] = a;
+        if a > 0 && a < 255 {
+            // Un-premultiply alpha
+            rgba_pixels[i * 4] = ((r as u16 * 255) / a as u16).min(255) as u8;
+            rgba_pixels[i * 4 + 1] = ((g as u16 * 255) / a as u16).min(255) as u8;
+            rgba_pixels[i * 4 + 2] = ((b as u16 * 255) / a as u16).min(255) as u8;
+            rgba_pixels[i * 4 + 3] = a;
+        } else {
+            rgba_pixels[i * 4] = r;
+            rgba_pixels[i * 4 + 1] = g;
+            rgba_pixels[i * 4 + 2] = b;
+            rgba_pixels[i * 4 + 3] = a;
+        }
     }
 
     // Create image and encode as PNG
