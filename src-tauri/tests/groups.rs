@@ -7,6 +7,7 @@ mod common;
 
 use common::*;
 use rusqlite::params;
+use rusqlite::OptionalExtension;
 
 /// Test complete group lifecycle: Create → Add entries → Batch operations → Delete
 #[test]

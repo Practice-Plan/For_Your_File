@@ -17,6 +17,10 @@ mod notifications;
 mod ppc_linker;
 mod protocol;
 
+// Re-export types needed by integration tests
+pub use hotkey::HotkeyConfig;
+pub use models::Entry;
+
 use cli::CliArgs;
 use commands::HotkeyState;
 use hotkey::HotkeyManager;
