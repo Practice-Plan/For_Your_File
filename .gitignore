@@ -17,6 +17,7 @@ node_modules/
 # Logs
 *.log
 logs/
+*.rtf
 
 # OS
 .DS_Store
