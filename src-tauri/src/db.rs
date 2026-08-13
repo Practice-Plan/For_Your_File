@@ -8,16 +8,13 @@ use rusqlite::Connection;
 use tauri::{AppHandle, Manager};
 
 /// Get the database path inside the app data directory, creating the directory if needed.
+///
+/// When PPC is reachable, the database is stored under the PPC-managed config
+/// directory (`<ppc_path>/app/For_Your_File/config/`); otherwise it falls back
+/// to the standard app data directory.
 pub fn get_database_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
-    let app_data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
-
-    std::fs::create_dir_all(&app_data_dir)
-        .map_err(|e| format!("Failed to create data directory: {}", e))?;
-
-    Ok(app_data_dir.join("lnk_management.db"))
+    let data_dir = crate::ppc_linker::resolve_data_dir(app_handle)?;
+    Ok(data_dir.join("lnk_management.db"))
 }
 
 /// Initialize the database: create all tables, indexes, and triggers if they don't exist.

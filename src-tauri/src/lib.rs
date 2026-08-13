@@ -141,6 +141,11 @@ pub fn run() {
                 )?;
             }
 
+            // Warm up data dir resolution (tries PPC-managed path first, so
+            // the database and configs land under <ppc_path>/app/For_Your_File/config
+            // when PPC is reachable; otherwise falls back to %APPDATA%/lnk-management).
+            let _ = ppc_linker::resolve_data_dir(app.handle());
+
             // Initialize database (creates tables, indexes, triggers if missing)
             if let Err(e) = db::init_database(app.handle()) {
                 log::error!("Failed to initialize database: {}", e);

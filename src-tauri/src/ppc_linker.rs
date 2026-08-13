@@ -343,6 +343,150 @@ pub fn ping_ppc() -> Result<bool, String> {
 }
 
 // ---------------------------------------------------------------------------
+// Data directory resolution (PPC-managed config path)
+// ---------------------------------------------------------------------------
+
+/// Cached PPC base path once successfully resolved, so we don't repeat the
+/// register→auth→PPCPATH round-trip on every data-dir lookup.
+static PPC_BASE_PATH_CACHE: Mutex<Option<std::path::PathBuf>> = Mutex::new(None);
+
+/// Query the PPC installation directory via the PPCPATH command.
+///
+/// PPCPATH is not a public command, so this performs REGISTER_APP → AUTH →
+/// PPCPATH on a single TCP connection. Returns the PPC base directory
+/// (the directory containing ppc.exe).
+fn query_ppc_base_path() -> Result<std::path::PathBuf, String> {
+    // Fast path: cached value from a previous successful resolution
+    if let Some(cached) = PPC_BASE_PATH_CACHE.lock().unwrap().as_ref() {
+        return Ok(cached.clone());
+    }
+
+    let addr = format!("{}:{}", PPC_HOST, PPC_PORT);
+    let mut stream = TcpStream::connect_timeout(
+        &addr.parse().map_err(|e| format!("Invalid address: {}", e))?,
+        Duration::from_secs(TIMEOUT_SECS),
+    )
+    .map_err(|e| format!("PPC not reachable: {}", e))?;
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(TIMEOUT_SECS)))
+        .map_err(|e| format!("Failed to set read timeout: {}", e))?;
+    stream
+        .set_write_timeout(Some(Duration::from_secs(TIMEOUT_SECS)))
+        .map_err(|e| format!("Failed to set write timeout: {}", e))?;
+
+    let mut buf = [0u8; 4096];
+
+    // Step 1: REGISTER_APP (public command, no auth required)
+    let exe_path = get_exe_path();
+    let register_cmd = format!("REGISTER_APP {}|{}|{}\n", APP_ID, APP_VERSION, exe_path);
+    stream
+        .write_all(register_cmd.as_bytes())
+        .map_err(|e| format!("Failed to send REGISTER_APP: {}", e))?;
+    let n = stream
+        .read(&mut buf)
+        .map_err(|e| format!("Failed to read REGISTER_APP response: {}", e))?;
+    let response = String::from_utf8_lossy(&buf[..n]).to_string();
+    let code = parse_status_code(&response).unwrap_or_default();
+    if !is_success_code(&code) {
+        let msg = map_ppc_code(&code);
+        return Err(format!("PPC register failed: {} ({})", msg, code));
+    }
+    let hash = parse_payload(&response).unwrap_or_default();
+    if hash.is_empty() {
+        return Err("PPC register returned empty hash".to_string());
+    }
+
+    // Step 2: AUTH on the same connection
+    let auth_cmd = format!("AUTH {}\n", hash);
+    stream
+        .write_all(auth_cmd.as_bytes())
+        .map_err(|e| format!("Failed to send AUTH: {}", e))?;
+    let n = stream
+        .read(&mut buf)
+        .map_err(|e| format!("Failed to read AUTH response: {}", e))?;
+    let response = String::from_utf8_lossy(&buf[..n]).to_string();
+    let code = parse_status_code(&response).unwrap_or_default();
+    if !is_success_code(&code) {
+        let msg = map_ppc_code(&code);
+        return Err(format!("PPC auth failed: {} ({})", msg, code));
+    }
+
+    // Step 3: PPCPATH on the same connection
+    stream
+        .write_all(b"PPCPATH\n")
+        .map_err(|e| format!("Failed to send PPCPATH: {}", e))?;
+    let n = stream
+        .read(&mut buf)
+        .map_err(|e| format!("Failed to read PPCPATH response: {}", e))?;
+    let response = String::from_utf8_lossy(&buf[..n]).to_string();
+    let code = parse_status_code(&response).unwrap_or_default();
+    if !is_success_code(&code) {
+        let msg = map_ppc_code(&code);
+        return Err(format!("Failed to query PPC path: {} ({})", msg, code));
+    }
+    let path = parse_payload(&response).unwrap_or_default().trim().to_string();
+    if path.is_empty() {
+        return Err("Cannot parse PPC path from response".to_string());
+    }
+
+    let path_buf = std::path::PathBuf::from(path);
+    log::info!("PPC base path resolved: {}", path_buf.display());
+
+    // Cache for subsequent lookups
+    *PPC_BASE_PATH_CACHE.lock().unwrap() = Some(path_buf.clone());
+
+    Ok(path_buf)
+}
+
+/// Resolve the application data directory for For_Your_File.
+///
+/// When PPC is reachable, config files are stored under:
+///   `<ppc_path>/app/For_Your_File/config`
+///
+/// When PPC is not available, falls back to the standard app data dir:
+///   `%APPDATA%/lnk-management`
+///
+/// The directory is created if it does not exist.
+pub fn resolve_data_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    // Try PPC-managed path first
+    match query_ppc_base_path() {
+        Ok(ppc_path) => {
+            let dir = ppc_path
+                .join("app")
+                .join("For_Your_File")
+                .join("config");
+            if std::fs::create_dir_all(&dir).is_ok() {
+                log::info!(
+                    "Data directory resolved to PPC-managed path: {}",
+                    dir.display()
+                );
+                return Ok(dir);
+            }
+            log::warn!(
+                "Failed to create PPC-managed data dir {}, falling back",
+                dir.display()
+            );
+        }
+        Err(e) => {
+            log::debug!("PPC path unavailable ({}), falling back to app data dir", e);
+        }
+    }
+
+    // Fallback: standard app data directory
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    std::fs::create_dir_all(&app_data_dir)
+        .map_err(|e| format!("Failed to create data directory: {}", e))?;
+
+    log::info!("Data directory resolved to fallback path: {}", app_data_dir.display());
+    Ok(app_data_dir)
+}
+
+// ---------------------------------------------------------------------------
 // Silent PPC launcher
 // ---------------------------------------------------------------------------
 
