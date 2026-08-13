@@ -244,7 +244,7 @@ fn parse_lnk_files(lnk_files: Vec<PathBuf>) -> Vec<InstalledApp> {
     }
 
     // Sort alphabetically by name
-    apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    apps.sort_by_key(|a| a.name.to_lowercase());
 
     apps
 }

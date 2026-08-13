@@ -1517,10 +1517,8 @@ pub async fn batch_create_entries(
             })
             .map_err(|e| format!("Failed to query existing paths: {}", e))?;
         let mut set = std::collections::HashSet::new();
-        for row in rows {
-            if let Ok(p) = row {
-                set.insert(p);
-            }
+        for p in rows.flatten() {
+            set.insert(p);
         }
         set
     };

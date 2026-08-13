@@ -125,10 +125,8 @@ pub fn run() {
                     api.prevent_close();
                 }
                 // Log focus changes for debugging minimize/restore issues
-                tauri::WindowEvent::Focused(focused) => {
-                    if !focused {
-                        log::debug!("Window lost focus");
-                    }
+                tauri::WindowEvent::Focused(false) => {
+                    log::debug!("Window lost focus");
                 }
                 _ => {}
             }
