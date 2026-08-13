@@ -85,8 +85,10 @@ impl ExpirationManager {
             .conn
             .prepare(
                 r#"
-                SELECT id, lnk_path, target_path, parameters, working_dir, tags, notes,
-                       frequency, last_opened, created_at, updated_at, expires_at
+                SELECT id, lnk_path, target_path, parameters, working_dir,
+                       description, icon_location, icon_index,
+                       tags, notes, frequency, last_opened,
+                       created_at, updated_at, expires_at
                 FROM entries
                 WHERE expires_at IS NOT NULL AND expires_at < ?1
                 ORDER BY expires_at ASC
@@ -114,8 +116,10 @@ impl ExpirationManager {
             .conn
             .prepare(
                 r#"
-                SELECT id, lnk_path, target_path, parameters, working_dir, tags, notes,
-                       frequency, last_opened, created_at, updated_at, expires_at
+                SELECT id, lnk_path, target_path, parameters, working_dir,
+                       description, icon_location, icon_index,
+                       tags, notes, frequency, last_opened,
+                       created_at, updated_at, expires_at
                 FROM entries
                 WHERE expires_at IS NOT NULL 
                   AND expires_at >= ?1 
