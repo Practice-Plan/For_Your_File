@@ -48,10 +48,19 @@ impl Default for HotkeyConfig {
 impl HotkeyConfig {
     /// Create a new hotkey config from a string like "Alt+Space"
     pub fn from_string(hotkey_str: &str) -> Result<Self, String> {
-        let parts: Vec<&str> = hotkey_str.split('+').map(|s| s.trim()).collect();
+        let trimmed = hotkey_str.trim();
+        if trimmed.is_empty() {
+            return Err("Invalid hotkey format: empty string".to_string());
+        }
+
+        let parts: Vec<&str> = trimmed
+            .split('+')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect();
 
         if parts.is_empty() {
-            return Err("Invalid hotkey format".to_string());
+            return Err("Invalid hotkey format: no keys".to_string());
         }
 
         // Last part is the key, rest are modifiers
