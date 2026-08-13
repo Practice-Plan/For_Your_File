@@ -2,10 +2,13 @@
 //!
 //! Scans the Windows Start Menu for .lnk shortcut files, parses each one to
 //! extract the target executable path, and returns a list of installed apps.
-//! Also provides icon extraction via PowerShell's System.Drawing API.
+//! Also provides icon extraction via native Windows API (ExtractIconExW + GDI)
+//! with disk caching for fast subsequent loads.
 
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 /// Information about an installed application discovered in the Start Menu.
 #[derive(Debug, Clone, Serialize)]
@@ -18,6 +21,93 @@ pub struct InstalledApp {
     pub lnk_path: String,
     /// Optional description from the shortcut
     pub description: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Icon disk cache
+// ---------------------------------------------------------------------------
+// Cache layout: <cache_dir>/<hash>.png  +  <cache_dir>/<hash>.meta
+//
+// The .meta file contains:
+//   line 1: exe path (for verification)
+//   line 2: exe last-modified timestamp (secs since UNIX epoch)
+//
+// Cache is invalidated when the exe's modification time changes (app updated).
+
+/// Compute a stable cache key from an exe path using DefaultHasher.
+fn cache_key(exe_path: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    exe_path.to_lowercase().hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+/// Try to read a cached icon. Returns Some(base64) if cache hit and still valid.
+fn read_icon_cache(cache_dir: &Path, exe_path: &str) -> Option<String> {
+    let key = cache_key(exe_path);
+    let png_path = cache_dir.join(format!("{}.png", key));
+    let meta_path = cache_dir.join(format!("{}.meta", key));
+
+    // Both files must exist
+    if !png_path.exists() || !meta_path.exists() {
+        return None;
+    }
+
+    // Read meta and validate
+    let meta = std::fs::read_to_string(&meta_path).ok()?;
+    let mut lines = meta.lines();
+    let cached_path = lines.next()?;
+    let cached_mtime: i64 = lines.next()?.parse().ok()?;
+
+    // Path must match (case-insensitive on Windows)
+    if cached_path.to_lowercase() != exe_path.to_lowercase() {
+        return None;
+    }
+
+    // Check if exe has been modified since caching
+    if let Ok(exe_meta) = std::fs::metadata(exe_path) {
+        if let Ok(exe_mtime) = exe_meta.modified() {
+            let exe_ts = exe_mtime
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            if exe_ts != cached_mtime {
+                return None; // exe was updated, cache stale
+            }
+        }
+    }
+
+    // Cache hit — read and return
+    std::fs::read_to_string(&png_path).ok()
+}
+
+/// Write an icon to the cache along with metadata for future validation.
+fn write_icon_cache(cache_dir: &Path, exe_path: &str, base64_data: &str) {
+    let key = cache_key(exe_path);
+    let png_path = cache_dir.join(format!("{}.png", key));
+    let meta_path = cache_dir.join(format!("{}.meta", key));
+
+    // Ensure cache directory exists
+    if let Err(e) = std::fs::create_dir_all(cache_dir) {
+        log::warn!("Failed to create icon cache dir: {}", e);
+        return;
+    }
+
+    // Write PNG data
+    if let Err(e) = std::fs::write(&png_path, base64_data) {
+        log::warn!("Failed to write icon cache: {}", e);
+        return;
+    }
+
+    // Write meta with exe path and modification timestamp
+    let mtime = std::fs::metadata(exe_path)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+
+    let meta_content = format!("{}\n{}", exe_path, mtime);
+    let _ = std::fs::write(&meta_path, meta_content);
 }
 
 /// Scan the Windows Start Menu for installed applications.
@@ -161,49 +251,194 @@ fn parse_lnk_files(lnk_files: Vec<PathBuf>) -> Vec<InstalledApp> {
 
 /// Extract an application icon as a base64-encoded PNG string.
 ///
-/// Uses PowerShell's System.Drawing.Icon.ExtractAssociatedIcon to extract the
-/// icon from the target executable, converts it to PNG, and returns as base64.
+/// Uses native Windows API (ExtractIconExW + GDI) to extract the icon directly,
+/// avoiding PowerShell startup overhead. The icon is converted to RGBA pixels
+/// via GDI, then encoded as PNG using the `image` crate.
+///
+/// Supports disk caching: if `cache_dir` is provided, the function checks for
+/// a cached icon first (validated by exe modification time). On cache miss,
+/// the extracted icon is saved to disk for future sessions.
 ///
 /// Returns an empty string on failure (non-fatal — the UI shows a default icon).
 #[cfg(windows)]
-pub fn extract_icon_as_base64(exe_path: &str) -> Result<String, String> {
-    use std::os::windows::process::CommandExt;
-
-    // PowerShell script that extracts the icon and outputs base64
-    let ps_script = format!(
-        r#"
-Add-Type -AssemblyName System.Drawing
-try {{
-    $icon = [System.Drawing.Icon]::ExtractAssociatedIcon('{}')
-    if ($icon -ne $null) {{
-        $ms = New-Object System.IO.MemoryStream
-        $bmp = $icon.ToBitmap()
-        $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-        $bmp.Dispose()
-        $icon.Dispose()
-        [Convert]::ToBase64String($ms.ToArray())
-    }}
-}} catch {{}}
-"#,
-        exe_path.replace('\'', "''")
-    );
-
-    let output = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW — prevent console flashing
-        .output()
-        .map_err(|e| format!("Failed to run PowerShell: {}", e))?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-    if stdout.is_empty() {
-        return Err("Icon extraction returned empty output".to_string());
+pub fn extract_icon_as_base64(
+    exe_path: &str,
+    cache_dir: Option<&Path>,
+) -> Result<String, String> {
+    // Check disk cache first
+    if let Some(dir) = cache_dir {
+        if let Some(cached) = read_icon_cache(dir, exe_path) {
+            return Ok(cached);
+        }
     }
 
-    Ok(stdout)
+    use base64::Engine;
+    use image::{ImageBuffer, Rgba};
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Gdi::{
+        CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, ReleaseDC, SelectObject,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::{
+        DestroyIcon, ExtractIconExW, GetIconInfo, ICONINFO,
+    };
+
+    // Convert path to wide string
+    let wide_path: Vec<u16> = OsStr::new(exe_path)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+
+    // Extract the large icon (32x32)
+    let mut hicon_large = windows::Win32::Foundation::HICON::default();
+    let mut hicon_small = windows::Win32::Foundation::HICON::default();
+
+    let count = unsafe {
+        ExtractIconExW(
+            PCWSTR(wide_path.as_ptr()),
+            0,
+            Some(&mut hicon_large),
+            Some(&mut hicon_small),
+            1,
+        )
+    };
+
+    if count == 0 {
+        return Err("No icon found in executable".to_string());
+    }
+
+    // Prefer large icon, fall back to small
+    let hicon = if !hicon_large.is_invalid() {
+        hicon_large
+    } else {
+        hicon_small
+    };
+
+    if hicon.is_invalid() {
+        return Err("Failed to extract icon".to_string());
+    }
+
+    // Get icon info
+    let mut icon_info = ICONINFO::default();
+    let success = unsafe { GetIconInfo(hicon, &mut icon_info) }.as_bool();
+
+    if !success {
+        unsafe { DestroyIcon(hicon).ok() };
+        return Err("Failed to get icon info".to_string());
+    }
+
+    // Get icon dimensions
+    let width = icon_info.xHotspot as u32;
+    let height = icon_info.yHotspot as u32;
+
+    if width == 0 || height == 0 {
+        unsafe {
+            DeleteObject(icon_info.hbmColor.into()).ok();
+            DeleteObject(icon_info.hbmMask.into()).ok();
+            DestroyIcon(hicon).ok();
+        }
+        return Err("Invalid icon dimensions".to_string());
+    }
+
+    // Create a memory DC and bitmap for rendering
+    let hdc_screen = unsafe { windows::Win32::Graphics::Gdi::GetDC(HWND::default()) };
+    let hdc_mem = unsafe { CreateCompatibleDC(hdc_screen) };
+    let hbm_mem = unsafe { CreateCompatibleBitmap(hdc_screen, width as i32, height as i32) };
+
+    unsafe {
+        let old_bmp = SelectObject(hdc_mem, hbm_mem);
+
+        // Draw the icon onto the bitmap
+        windows::Win32::Graphics::Gdi::DrawIconEx(
+            hdc_mem,
+            0,
+            0,
+            hicon,
+            width as i32,
+            height as i32,
+            0,
+            None,
+            windows::Win32::Graphics::Gdi::DI_NORMAL,
+        )
+        .ok();
+
+        // Read pixels from the bitmap
+        let mut bmi = windows::Win32::Graphics::Gdi::BITMAPINFO {
+            bmiHeader: windows::Win32::Graphics::Gdi::BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<windows::Win32::Graphics::Gdi::BITMAPINFOHEADER>()
+                    as u32,
+                biWidth: width as i32,
+                biHeight: -(height as i32), // Top-down
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: windows::Win32::Graphics::Gdi::BI_RGB,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut pixels = vec![0u8; (width * height * 4) as usize];
+        windows::Win32::Graphics::Gdi::GetDIBits(
+            hdc_mem,
+            hbm_mem,
+            0,
+            height,
+            Some(pixels.as_mut_ptr() as *mut _),
+            &mut bmi,
+            windows::Win32::Graphics::Gdi::DIB_RGB_COLORS,
+        );
+
+        // Cleanup
+        SelectObject(hdc_mem, old_bmp);
+        DeleteObject(hbm_mem).ok();
+        DeleteDC(hdc_mem).ok();
+        ReleaseDC(HWND::default(), hdc_screen);
+        DeleteObject(icon_info.hbmColor.into()).ok();
+        DeleteObject(icon_info.hbmMask.into()).ok();
+        DestroyIcon(hicon).ok();
+    }
+
+    // Convert BGRA to RGBA (Windows GDI returns BGRA)
+    let mut rgba_pixels = vec![0u8; (width * height * 4) as usize];
+    for i in 0..(width * height) as usize {
+        let b = pixels[i * 4];
+        let g = pixels[i * 4 + 1];
+        let r = pixels[i * 4 + 2];
+        let a = pixels[i * 4 + 3];
+        rgba_pixels[i * 4] = r;
+        rgba_pixels[i * 4 + 1] = g;
+        rgba_pixels[i * 4 + 2] = b;
+        rgba_pixels[i * 4 + 3] = a;
+    }
+
+    // Create image and encode as PNG
+    let img: ImageBuffer<Rgba<u8>, Vec<u8>> =
+        ImageBuffer::from_raw(width, height, rgba_pixels).ok_or("Failed to create image")?;
+
+    let mut png_bytes = Vec::new();
+    img.write_to(
+        &mut std::io::Cursor::new(&mut png_bytes),
+        image::ImageFormat::Png,
+    )
+    .map_err(|e| format!("Failed to encode PNG: {}", e))?;
+
+    // Encode as base64
+    let base64_str = base64::engine::general_purpose::STANDARD.encode(&png_bytes);
+
+    // Save to disk cache for future sessions
+    if let Some(dir) = cache_dir {
+        write_icon_cache(dir, exe_path, &base64_str);
+    }
+
+    Ok(base64_str)
 }
 
 #[cfg(not(windows))]
-pub fn extract_icon_as_base64(_exe_path: &str) -> Result<String, String> {
+pub fn extract_icon_as_base64(
+    _exe_path: &str,
+    _cache_dir: Option<&Path>,
+) -> Result<String, String> {
     Err("Icon extraction is only supported on Windows".to_string())
 }

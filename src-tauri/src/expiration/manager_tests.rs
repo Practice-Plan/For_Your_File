@@ -14,15 +14,18 @@ mod tests {
     fn create_test_db() -> Connection {
         let conn = Connection::open_in_memory().expect("Failed to create in-memory DB");
 
-        // Create the entries table
+        // Create the entries table (must match actual schema in db.rs)
         conn.execute(
             r#"
             CREATE TABLE entries (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                lnk_path TEXT NOT NULL UNIQUE,
+                lnk_path TEXT,
                 target_path TEXT NOT NULL,
                 parameters TEXT,
                 working_dir TEXT,
+                description TEXT,
+                icon_location TEXT,
+                icon_index INTEGER,
                 tags TEXT,
                 notes TEXT,
                 frequency INTEGER DEFAULT 0,
@@ -74,15 +77,20 @@ mod tests {
     fn insert_entry(conn: &Connection, entry: &Entry) -> i64 {
         conn.execute(
             r#"
-            INSERT INTO entries (lnk_path, target_path, parameters, working_dir, tags, notes,
-                                 frequency, last_opened, created_at, updated_at, expires_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+            INSERT INTO entries (lnk_path, target_path, parameters, working_dir,
+                                 description, icon_location, icon_index,
+                                 tags, notes, frequency, last_opened,
+                                 created_at, updated_at, expires_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
             "#,
             rusqlite::params![
                 entry.lnk_path,
                 entry.target_path,
                 entry.parameters,
                 entry.working_dir,
+                entry.description,
+                entry.icon_location,
+                entry.icon_index,
                 entry.tags,
                 entry.notes,
                 entry.frequency,

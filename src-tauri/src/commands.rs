@@ -57,10 +57,21 @@ pub fn list_installed_apps() -> Result<Vec<app_scanner::InstalledApp>, String> {
 
 /// Extract an application's icon as a base64-encoded PNG string.
 /// Used by the app selector modal to display application icons.
+///
+/// Icons are cached on disk under `<app_data_dir>/icon_cache/`. On first call
+/// the icon is extracted via native Windows API and saved to cache. Subsequent
+/// calls (even after app restart) read directly from cache unless the exe has
+/// been modified.
 #[tauri::command]
-pub fn get_app_icon(exe_path: String) -> Result<String, String> {
+pub fn get_app_icon(app_handle: AppHandle, exe_path: String) -> Result<String, String> {
     log::debug!("Extracting icon for: {}", exe_path);
-    app_scanner::extract_icon_as_base64(&exe_path)
+
+    // Build cache directory path: <app_data_dir>/icon_cache/
+    let cache_dir = db::get_database_path(&app_handle)
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("icon_cache")));
+
+    app_scanner::extract_icon_as_base64(&exe_path, cache_dir.as_deref())
 }
 
 /// Register a global hotkey

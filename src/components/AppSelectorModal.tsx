@@ -46,7 +46,7 @@ const iconCache = new Map<string, string>()
 const pendingExtractions = new Map<string, Array<(result: string) => void>>()
 
 /** Maximum concurrent icon extraction processes. */
-const MAX_CONCURRENT = 3
+const MAX_CONCURRENT = 8
 
 /** Current number of active extractions. */
 let activeCount = 0

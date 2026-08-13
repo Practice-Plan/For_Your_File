@@ -26,8 +26,8 @@ fn test_entry_lifecycle_workflow() {
     // Insert entry for executable
     let now = chrono::Utc::now().timestamp();
     conn.execute(
-        "INSERT INTO entries (lnk_path, target_path, target_type, created_at, updated_at)
-         VALUES (?1, ?2, 'exe', ?3, ?4)",
+        "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4)",
         params![
             exe_lnk.to_string_lossy().to_string(),
             fixture
@@ -45,8 +45,8 @@ fn test_entry_lifecycle_workflow() {
 
     // Insert entry for document
     conn.execute(
-        "INSERT INTO entries (lnk_path, target_path, target_type, created_at, updated_at)
-         VALUES (?1, ?2, 'doc', ?3, ?4)",
+        "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4)",
         params![
             doc_lnk.to_string_lossy().to_string(),
             fixture
@@ -64,8 +64,8 @@ fn test_entry_lifecycle_workflow() {
 
     // Insert entry for folder
     conn.execute(
-        "INSERT INTO entries (lnk_path, target_path, target_type, created_at, updated_at)
-         VALUES (?1, ?2, 'folder', ?3, ?4)",
+        "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4)",
         params![
             folder_lnk.to_string_lossy().to_string(),
             fixture
@@ -175,23 +175,22 @@ fn test_entry_creation_different_types() {
         ("website.url", "url"),
     ];
 
-    for (name, file_type) in test_cases {
+    for (name, _file_type) in test_cases {
         let now = chrono::Utc::now().timestamp();
         let lnk_path = fixture.lnk_dir.join(format!("{}.lnk", name));
         let target_path = fixture.temp_dir.path().join(name);
 
         conn.execute(
-            "INSERT INTO entries (lnk_path, target_path, target_type, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO entries (lnk_path, target_path, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4)",
             params![
                 lnk_path.to_string_lossy().to_string(),
                 target_path.to_string_lossy().to_string(),
-                file_type,
                 now,
                 now
             ],
         )
-        .expect(&format!("Failed to insert {} entry", file_type));
+        .expect(&format!("Failed to insert {} entry", name));
     }
 
     // Verify all entries were created
@@ -200,19 +199,6 @@ fn test_entry_creation_different_types() {
         .expect("Failed to count entries");
 
     assert_eq!(count, 4);
-
-    // Verify each type exists
-    for file_type in &["exe", "doc", "folder", "url"] {
-        let count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM entries WHERE target_type = ?1",
-                params![file_type],
-                |row| row.get(0),
-            )
-            .expect(&format!("Failed to count {} entries", file_type));
-
-        assert_eq!(count, 1, "Expected 1 {} entry", file_type);
-    }
 }
 
 /// Test entry search functionality

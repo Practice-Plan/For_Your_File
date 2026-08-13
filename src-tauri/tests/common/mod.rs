@@ -90,10 +90,13 @@ impl TestFixture {
             r#"
             CREATE TABLE IF NOT EXISTS entries (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                lnk_path TEXT NOT NULL UNIQUE,
+                lnk_path TEXT,
                 target_path TEXT NOT NULL,
                 parameters TEXT,
                 working_dir TEXT,
+                description TEXT,
+                icon_location TEXT,
+                icon_index INTEGER,
                 tags TEXT,
                 notes TEXT,
                 frequency INTEGER DEFAULT 0,
@@ -122,10 +125,11 @@ impl TestFixture {
             CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
                 lnk_path,
                 target_path,
+                description,
                 tags,
                 notes,
-                content=entries,
-                content_rowid=id
+                content='entries',
+                content_rowid='id'
             );
 
             CREATE INDEX IF NOT EXISTS idx_entries_frequency ON entries(frequency DESC);
