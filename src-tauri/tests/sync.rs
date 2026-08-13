@@ -84,8 +84,8 @@ fn test_file_watcher_detects_changes() {
         )
         .expect("Failed to query timestamp");
 
-    // Update the entry
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    // Update the entry (wait for timestamp to change — seconds precision)
+    std::thread::sleep(std::time::Duration::from_millis(1100));
     let new_updated_at = chrono::Utc::now().timestamp();
 
     conn.execute(
