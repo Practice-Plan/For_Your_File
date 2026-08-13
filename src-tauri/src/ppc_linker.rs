@@ -167,6 +167,7 @@ pub fn is_success_code(code: &str) -> bool {
 }
 
 /// Check if a PPC code represents an error (starts with "0x1").
+#[allow(dead_code)]
 pub fn is_error_code(code: &str) -> bool {
     code.to_lowercase().starts_with("0x1")
 }

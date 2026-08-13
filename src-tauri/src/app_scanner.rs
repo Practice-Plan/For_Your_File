@@ -167,6 +167,8 @@ fn parse_lnk_files(lnk_files: Vec<PathBuf>) -> Vec<InstalledApp> {
 /// Returns an empty string on failure (non-fatal — the UI shows a default icon).
 #[cfg(windows)]
 pub fn extract_icon_as_base64(exe_path: &str) -> Result<String, String> {
+    use std::os::windows::process::CommandExt;
+
     // PowerShell script that extracts the icon and outputs base64
     let ps_script = format!(
         r#"
@@ -188,6 +190,7 @@ try {{
 
     let output = std::process::Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW — prevent console flashing
         .output()
         .map_err(|e| format!("Failed to run PowerShell: {}", e))?;
 

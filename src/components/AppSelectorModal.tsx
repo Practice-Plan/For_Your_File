@@ -35,29 +35,104 @@ const DEFAULT_APP_ICON = (
   </svg>
 )
 
-// App icon component with lazy loading
-function AppIcon({ exePath, size }: { exePath: string; size: number }) {
-  const [iconBase64, setIconBase64] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+// ---------------------------------------------------------------------------
+// Icon cache + concurrency-limited queue
+// ---------------------------------------------------------------------------
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
+/** Global icon cache: exePath → base64 PNG (or empty string = extraction failed). */
+const iconCache = new Map<string, string>()
 
-    invoke<string>('get_app_icon', { exePath })
+/** Pending extractions: exePath → array of callbacks waiting for the result. */
+const pendingExtractions = new Map<string, Array<(result: string) => void>>()
+
+/** Maximum concurrent icon extraction processes. */
+const MAX_CONCURRENT = 3
+
+/** Current number of active extractions. */
+let activeCount = 0
+
+/** Queue of { exePath, resolve } waiting to be processed. */
+const extractionQueue: Array<{ exePath: string; resolve: (result: string) => void }> = []
+
+/** Dequeue and start the next extraction if under the concurrency limit. */
+function pumpQueue() {
+  while (activeCount < MAX_CONCURRENT && extractionQueue.length > 0) {
+    const item = extractionQueue.shift()!
+    activeCount++
+    invoke<string>('get_app_icon', { exePath: item.exePath })
       .then(base64 => {
-        if (!cancelled && base64) {
-          setIconBase64(base64)
-        }
+        iconCache.set(item.exePath, base64 || '')
+        // Notify all waiters
+        const waiters = pendingExtractions.get(item.exePath)
+        pendingExtractions.delete(item.exePath)
+        waiters?.forEach(cb => cb(base64 || ''))
+        item.resolve(base64 || '')
       })
       .catch(() => {
-        // Icon extraction failed — use default icon
+        iconCache.set(item.exePath, '')
+        const waiters = pendingExtractions.get(item.exePath)
+        pendingExtractions.delete(item.exePath)
+        waiters?.forEach(cb => cb(''))
+        item.resolve('')
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        activeCount--
+        pumpQueue()
       })
+  }
+}
 
-    return () => { cancelled = true }
+/**
+ * Request an icon for the given exe path. Returns immediately from cache if
+ * available, otherwise queues an extraction. Multiple callers requesting the
+ * same exe path share a single extraction call.
+ */
+function requestIcon(exePath: string, callback: (result: string) => void): () => void {
+  // Cache hit
+  if (iconCache.has(exePath)) {
+    callback(iconCache.get(exePath) || '')
+    return () => {}
+  }
+
+  // Already pending — add to waiters
+  if (pendingExtractions.has(exePath)) {
+    pendingExtractions.get(exePath)!.push(callback)
+    return () => {}
+  }
+
+  // New extraction — queue it
+  pendingExtractions.set(exePath, [callback])
+  extractionQueue.push({
+    exePath,
+    resolve: () => {}, // individual waiters are notified in pumpQueue
+  })
+  pumpQueue()
+
+  return () => {}
+}
+
+// App icon component with lazy loading, caching, and concurrency control
+function AppIcon({ exePath, size }: { exePath: string; size: number }) {
+  const [iconBase64, setIconBase64] = useState<string | null>(
+    iconCache.get(exePath) || null
+  )
+  const [loading, setLoading] = useState(!iconCache.has(exePath))
+
+  useEffect(() => {
+    // Fast path: already in cache
+    if (iconCache.has(exePath)) {
+      setIconBase64(iconCache.get(exePath) || '')
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    const cancel = requestIcon(exePath, (result) => {
+      setIconBase64(result || '')
+      setLoading(false)
+    })
+
+    return cancel
   }, [exePath])
 
   if (loading) {
@@ -230,7 +305,7 @@ export function AppSelectorModal({ isOpen, onClose, onSelect }: AppSelectorModal
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
                   >
                     <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-                      {DEFAULT_APP_ICON}
+                      <AppIcon exePath={app.target_path} size={32} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">

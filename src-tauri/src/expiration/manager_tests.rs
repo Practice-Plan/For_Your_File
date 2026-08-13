@@ -53,7 +53,7 @@ mod tests {
             id: None,
             lnk_path: lnk_path.to_string(),
             target_path: target_path.to_string(),
-            target_type: LnkTarget::File(target_path.to_string()),
+            target_type: LnkTarget::from_path(target_path),
             parameters: None,
             working_dir: None,
             description: None,
@@ -208,7 +208,8 @@ mod tests {
             .expect("Failed to set expiration");
 
         // Verify the entry has expiration set
-        let exp_ts: Option<i64> = conn
+        let exp_ts: Option<i64> = manager
+            .connection()
             .query_row(
                 "SELECT expires_at FROM entries WHERE id = ?1",
                 [id],
@@ -236,7 +237,8 @@ mod tests {
             .expect("Failed to remove expiration");
 
         // Verify expiration is removed
-        let exp_ts: Option<i64> = conn
+        let exp_ts: Option<i64> = manager
+            .connection()
             .query_row(
                 "SELECT expires_at FROM entries WHERE id = ?1",
                 [id],
@@ -263,14 +265,14 @@ mod tests {
             .expect("Failed to extend expiration");
 
         // Verify expiration is extended
-        let new_exp_ts: i64 = conn
+        let new_exp_ts: i64 = manager
+            .connection()
             .query_row(
                 "SELECT expires_at FROM entries WHERE id = ?1",
                 [id],
                 |row| row.get::<_, Option<i64>>(0).map(|o| o.unwrap_or(0)),
             )
-            .expect("Failed to query")
-            .expect("No result");
+            .expect("Failed to query");
 
         // Should be extended by 7 days from original
         let expected = original_expiry.timestamp() + (7 * 86400);
