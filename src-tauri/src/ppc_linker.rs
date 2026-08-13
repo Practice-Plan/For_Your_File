@@ -364,7 +364,9 @@ fn query_ppc_base_path() -> Result<std::path::PathBuf, String> {
 
     let addr = format!("{}:{}", PPC_HOST, PPC_PORT);
     let mut stream = TcpStream::connect_timeout(
-        &addr.parse().map_err(|e| format!("Invalid address: {}", e))?,
+        &addr
+            .parse()
+            .map_err(|e| format!("Invalid address: {}", e))?,
         Duration::from_secs(TIMEOUT_SECS),
     )
     .map_err(|e| format!("PPC not reachable: {}", e))?;
@@ -426,7 +428,10 @@ fn query_ppc_base_path() -> Result<std::path::PathBuf, String> {
         let msg = map_ppc_code(&code);
         return Err(format!("Failed to query PPC path: {} ({})", msg, code));
     }
-    let path = parse_payload(&response).unwrap_or_default().trim().to_string();
+    let path = parse_payload(&response)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
     if path.is_empty() {
         return Err("Cannot parse PPC path from response".to_string());
     }
@@ -453,10 +458,7 @@ pub fn resolve_data_dir(app_handle: &tauri::AppHandle) -> Result<std::path::Path
     // Try PPC-managed path first
     match query_ppc_base_path() {
         Ok(ppc_path) => {
-            let dir = ppc_path
-                .join("app")
-                .join("For_Your_File")
-                .join("config");
+            let dir = ppc_path.join("app").join("For_Your_File").join("config");
             if std::fs::create_dir_all(&dir).is_ok() {
                 log::info!(
                     "Data directory resolved to PPC-managed path: {}",
@@ -483,7 +485,10 @@ pub fn resolve_data_dir(app_handle: &tauri::AppHandle) -> Result<std::path::Path
     std::fs::create_dir_all(&app_data_dir)
         .map_err(|e| format!("Failed to create data directory: {}", e))?;
 
-    log::info!("Data directory resolved to fallback path: {}", app_data_dir.display());
+    log::info!(
+        "Data directory resolved to fallback path: {}",
+        app_data_dir.display()
+    );
     Ok(app_data_dir)
 }
 
