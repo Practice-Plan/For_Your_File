@@ -1,4 +1,4 @@
-﻿//! PPC (Programmable Processing Core) Linker
+//! PPC (Programmable Processing Core) Linker
 //!
 //! Connects the For_Your_File application to the PPC Central Processing System
 //! running on 127.0.0.1:9527. Handles:
@@ -13,8 +13,8 @@
 
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::time::Duration;
 use std::sync::Mutex;
+use std::time::Duration;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -178,9 +178,7 @@ pub fn is_error_code(code: &str) -> bool {
 
 /// Parse a version string "x.y.z" into a Vec<u32>.
 fn parse_version(v: &str) -> Vec<u32> {
-    v.split('.')
-        .filter_map(|s| s.parse::<u32>().ok())
-        .collect()
+    v.split('.').filter_map(|s| s.parse::<u32>().ok()).collect()
 }
 
 /// Check if a PPC version is within the supported range.
@@ -211,7 +209,9 @@ pub fn is_version_supported(version: &str) -> bool {
 fn send_command(command: &str) -> Result<String, String> {
     let addr = format!("{}:{}", PPC_HOST, PPC_PORT);
     let mut stream = TcpStream::connect_timeout(
-        &addr.parse().map_err(|e| format!("Invalid address: {}", e))?,
+        &addr
+            .parse()
+            .map_err(|e| format!("Invalid address: {}", e))?,
         Duration::from_secs(TIMEOUT_SECS),
     )
     .map_err(|e| format!("Failed to connect to PPC ({}): {}", addr, e))?;
@@ -245,10 +245,7 @@ fn parse_status_code(response: &str) -> Option<String> {
 
 /// Parse the second line of a PPC response (often the payload).
 fn parse_payload(response: &str) -> Option<String> {
-    response
-        .lines()
-        .nth(1)
-        .map(|line| line.trim().to_string())
+    response.lines().nth(1).map(|line| line.trim().to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -372,9 +369,9 @@ fn wait_for_port(host: &str, port: u16, timeout_secs: u64) -> bool {
 
     while std::time::Instant::now() < deadline {
         if let Ok(stream) = std::net::TcpStream::connect_timeout(
-            &addr.parse().unwrap_or_else(|_| {
-                "127.0.0.1:9527".parse().unwrap()
-            }),
+            &addr
+                .parse()
+                .unwrap_or_else(|_| "127.0.0.1:9527".parse().unwrap()),
             Duration::from_millis(500),
         ) {
             drop(stream);
@@ -413,7 +410,8 @@ pub fn ppc_connect_auto(
                     log::info!("PPC launched, waiting for it to bind to port...");
                     // Wait up to 10 seconds for PPC to become reachable
                     if !wait_for_port(PPC_HOST, PPC_PORT, 10) {
-                        let err_msg = "PPC was launched but did not become reachable within 10s".to_string();
+                        let err_msg =
+                            "PPC was launched but did not become reachable within 10s".to_string();
                         log::error!("{}", err_msg);
 
                         // Update session state
@@ -443,7 +441,10 @@ pub fn ppc_connect_auto(
                     }
 
                     // Show warning dialog
-                    show_ppc_warning_dialog(&app_handle, &format!("Failed to connect to PPC.\n{}", e));
+                    show_ppc_warning_dialog(
+                        &app_handle,
+                        &format!("Failed to connect to PPC.\n{}", e),
+                    );
 
                     return Err(e);
                 }
@@ -452,14 +453,18 @@ pub fn ppc_connect_auto(
 
         #[cfg(not(windows))]
         {
-            let err_msg = "PPC not running and auto-launch is only supported on Windows".to_string();
+            let err_msg =
+                "PPC not running and auto-launch is only supported on Windows".to_string();
             {
                 let mut session = state.session.lock().map_err(|e| e.to_string())?;
                 session.connected = false;
                 session.status_message = err_msg.clone();
                 session.last_error_code = Some("0x10017".to_string());
             }
-            show_ppc_warning_dialog(&app_handle, "Failed to connect to PPC. Auto-launch is only supported on Windows.");
+            show_ppc_warning_dialog(
+                &app_handle,
+                "Failed to connect to PPC. Auto-launch is only supported on Windows.",
+            );
             return Err(err_msg);
         }
     }
@@ -544,10 +549,7 @@ pub fn ppc_send_command(
 ) -> Result<String, String> {
     let (hash, connected) = {
         let session = state.session.lock().map_err(|e| e.to_string())?;
-        (
-            session.app_hash.clone(),
-            session.connected,
-        )
+        (session.app_hash.clone(), session.connected)
     };
 
     if !connected {
@@ -560,7 +562,9 @@ pub fn ppc_send_command(
     // then the actual command. Both must go through the same TCP connection.
     let addr = format!("{}:{}", PPC_HOST, PPC_PORT);
     let mut stream = TcpStream::connect_timeout(
-        &addr.parse().map_err(|e| format!("Invalid address: {}", e))?,
+        &addr
+            .parse()
+            .map_err(|e| format!("Invalid address: {}", e))?,
         Duration::from_secs(TIMEOUT_SECS),
     )
     .map_err(|e| format!("Failed to connect to PPC: {}", e))?;
@@ -595,7 +599,10 @@ pub fn ppc_send_command(
             session.status_message = format!("PPC auth expired: {} ({})", msg, auth_code);
             session.last_error_code = Some(auth_code.clone());
         }
-        return Err(format!("PPC authentication failed: {} ({})", msg, auth_code));
+        return Err(format!(
+            "PPC authentication failed: {} ({})",
+            msg, auth_code
+        ));
     }
 
     // Send the actual command
@@ -608,14 +615,19 @@ pub fn ppc_send_command(
         .read(&mut buf)
         .map_err(|e| format!("Failed to read response: {}", e))?;
 
-    let response = String::from_utf8(buf[..n].to_vec())
-        .map_err(|e| format!("UTF-8 decode error: {}", e))?;
+    let response =
+        String::from_utf8(buf[..n].to_vec()).map_err(|e| format!("UTF-8 decode error: {}", e))?;
 
     // Parse status code and map to readable message
     let code = parse_status_code(&response).unwrap_or_default();
     if !is_success_code(&code) {
         let msg = map_ppc_code(&code);
-        log::warn!("PPC command '{}' returned error: {} ({})", command, msg, code);
+        log::warn!(
+            "PPC command '{}' returned error: {} ({})",
+            command,
+            msg,
+            code
+        );
     }
 
     Ok(response)
@@ -636,18 +648,33 @@ pub fn ppc_disconnect(state: tauri::State<'_, PpcState>) -> Result<(), String> {
 pub fn ppc_error_codes() -> Vec<(String, String)> {
     vec![
         ("0x00000".to_string(), "Success".to_string()),
-        ("0x00001".to_string(), "App registered successfully".to_string()),
-        ("0x00002".to_string(), "App updated successfully".to_string()),
+        (
+            "0x00001".to_string(),
+            "App registered successfully".to_string(),
+        ),
+        (
+            "0x00002".to_string(),
+            "App updated successfully".to_string(),
+        ),
         ("0x00003".to_string(), "DLL loaded successfully".to_string()),
-        ("0x00004".to_string(), "Command executed successfully".to_string()),
+        (
+            "0x00004".to_string(),
+            "Command executed successfully".to_string(),
+        ),
         ("0x10000".to_string(), "Unknown error".to_string()),
         ("0x10001".to_string(), "Unsupported command".to_string()),
         ("0x10002".to_string(), "Resource not found".to_string()),
-        ("0x10003".to_string(), "Signature verification failed".to_string()),
+        (
+            "0x10003".to_string(),
+            "Signature verification failed".to_string(),
+        ),
         ("0x10004".to_string(), "Hash mismatch".to_string()),
         ("0x10005".to_string(), "Registration failed".to_string()),
         ("0x10006".to_string(), "Update failed".to_string()),
-        ("0x10007".to_string(), "App not registered or not authenticated".to_string()),
+        (
+            "0x10007".to_string(),
+            "App not registered or not authenticated".to_string(),
+        ),
         ("0x10008".to_string(), "Invalid parameters".to_string()),
         ("0x10009".to_string(), "File not found".to_string()),
         ("0x10010".to_string(), "Permission denied".to_string()),
@@ -658,19 +685,43 @@ pub fn ppc_error_codes() -> Vec<(String, String)> {
         ("0x10015".to_string(), "Connection failed".to_string()),
         ("0x10016".to_string(), "Timeout".to_string()),
         ("0x10017".to_string(), "PPC server not running".to_string()),
-        ("0x10018".to_string(), "PPC authentication failed".to_string()),
-        ("0x10019".to_string(), "PPC version not supported".to_string()),
+        (
+            "0x10018".to_string(),
+            "PPC authentication failed".to_string(),
+        ),
+        (
+            "0x10019".to_string(),
+            "PPC version not supported".to_string(),
+        ),
         ("0x10020".to_string(), "PPC response invalid".to_string()),
         ("0x10021".to_string(), "Window pin failed".to_string()),
         ("0x10022".to_string(), "Window not found".to_string()),
-        ("0x10023".to_string(), "Hotkey registration failed".to_string()),
+        (
+            "0x10023".to_string(),
+            "Hotkey registration failed".to_string(),
+        ),
         ("0x10024".to_string(), "Config save failed".to_string()),
         ("0x10025".to_string(), "Config load failed".to_string()),
-        ("0x10026".to_string(), "State persistence failed".to_string()),
-        ("0x10027".to_string(), "Administrator privileges required".to_string()),
-        ("0x10028".to_string(), "Localization load failed".to_string()),
-        ("0x10029".to_string(), "Single instance violation".to_string()),
-        ("0x10030".to_string(), "Hook installation failed".to_string()),
+        (
+            "0x10026".to_string(),
+            "State persistence failed".to_string(),
+        ),
+        (
+            "0x10027".to_string(),
+            "Administrator privileges required".to_string(),
+        ),
+        (
+            "0x10028".to_string(),
+            "Localization load failed".to_string(),
+        ),
+        (
+            "0x10029".to_string(),
+            "Single instance violation".to_string(),
+        ),
+        (
+            "0x10030".to_string(),
+            "Hook installation failed".to_string(),
+        ),
         ("0x10031".to_string(), "Log write failed".to_string()),
         ("0x10032".to_string(), "DLL call failed".to_string()),
         ("0x20000".to_string(), "Waiting for signature".to_string()),
@@ -683,11 +734,23 @@ pub fn ppc_error_codes() -> Vec<(String, String)> {
         ("0x20007".to_string(), "Registering".to_string()),
         ("0x20008".to_string(), "Authenticating".to_string()),
         ("0x20009".to_string(), "Reconnecting".to_string()),
-        ("0x30000".to_string(), "Deprecated command warning".to_string()),
+        (
+            "0x30000".to_string(),
+            "Deprecated command warning".to_string(),
+        ),
         ("0x30001".to_string(), "Old version warning".to_string()),
-        ("0x30002".to_string(), "High memory usage warning".to_string()),
+        (
+            "0x30002".to_string(),
+            "High memory usage warning".to_string(),
+        ),
         ("0x30003".to_string(), "PPC reconnect warning".to_string()),
-        ("0x30004".to_string(), "Fallback behavior warning".to_string()),
-        ("0x30005".to_string(), "Language fallback warning".to_string()),
+        (
+            "0x30004".to_string(),
+            "Fallback behavior warning".to_string(),
+        ),
+        (
+            "0x30005".to_string(),
+            "Language fallback warning".to_string(),
+        ),
     ]
 }

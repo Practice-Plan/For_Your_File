@@ -2,9 +2,9 @@
 //!
 //! Provides IPC interface between frontend and backend for operations.
 
+use crate::app_scanner;
 use crate::cli::CliArgs;
 use crate::db;
-use crate::app_scanner;
 use crate::expiration::{ExpirationConfig, ExpirationManager, ExpirationStatus};
 use crate::hotkey::{HotkeyConfig, HotkeyManager};
 use crate::lnk;
@@ -1431,7 +1431,10 @@ pub fn open_working_directory(path: String) -> Result<(), String> {
         let parent = p
             .parent()
             .ok_or_else(|| "Cannot resolve parent directory".to_string())?;
-        (parent.to_string_lossy().to_string(), p.file_name().map(|n| n.to_string_lossy().to_string()))
+        (
+            parent.to_string_lossy().to_string(),
+            p.file_name().map(|n| n.to_string_lossy().to_string()),
+        )
     };
 
     let mut args = vec!["/C".to_string(), "explorer".to_string()];
@@ -1524,7 +1527,8 @@ pub async fn batch_create_entries(
     };
 
     // Use a transaction for atomicity and performance (all inserts commit together)
-    let tx = conn.transaction()
+    let tx = conn
+        .transaction()
         .map_err(|e| format!("Failed to begin transaction: {}", e))?;
 
     for (index, input) in entries.into_iter().enumerate() {
@@ -1534,12 +1538,15 @@ pub async fn batch_create_entries(
         // Check for duplicates (case-insensitive on Windows)
         if existing_paths.contains(&target_path_lower) {
             // Emit progress event before moving target_path into result
-            let _ = app_handle.emit("batch-import-progress", serde_json::json!({
-                "current": index + 1,
-                "total": total,
-                "target_path": &target_path,
-                "status": "duplicate"
-            }));
+            let _ = app_handle.emit(
+                "batch-import-progress",
+                serde_json::json!({
+                    "current": index + 1,
+                    "total": total,
+                    "target_path": &target_path,
+                    "status": "duplicate"
+                }),
+            );
             results.push(BatchCreateResult {
                 success: false,
                 error: Some(format!("目标路径已存在，跳过重复条目: {}", target_path)),
@@ -1582,12 +1589,15 @@ pub async fn batch_create_entries(
                 // Track the new path to prevent duplicates within the same batch
                 existing_paths.insert(target_path_lower);
                 // Emit progress event before moving target_path into result
-                let _ = app_handle.emit("batch-import-progress", serde_json::json!({
-                    "current": index + 1,
-                    "total": total,
-                    "target_path": &target_path,
-                    "status": "done"
-                }));
+                let _ = app_handle.emit(
+                    "batch-import-progress",
+                    serde_json::json!({
+                        "current": index + 1,
+                        "total": total,
+                        "target_path": &target_path,
+                        "status": "done"
+                    }),
+                );
                 results.push(BatchCreateResult {
                     success: true,
                     error: None,
@@ -1597,12 +1607,15 @@ pub async fn batch_create_entries(
             }
             Err(e) => {
                 // Emit progress event before moving target_path into result
-                let _ = app_handle.emit("batch-import-progress", serde_json::json!({
-                    "current": index + 1,
-                    "total": total,
-                    "target_path": &target_path,
-                    "status": "error"
-                }));
+                let _ = app_handle.emit(
+                    "batch-import-progress",
+                    serde_json::json!({
+                        "current": index + 1,
+                        "total": total,
+                        "target_path": &target_path,
+                        "status": "error"
+                    }),
+                );
                 results.push(BatchCreateResult {
                     success: false,
                     error: Some(format!("插入失败: {}", e)),
@@ -1618,11 +1631,14 @@ pub async fn batch_create_entries(
         .map_err(|e| format!("Failed to commit transaction: {}", e))?;
 
     // Emit completion event
-    let _ = app_handle.emit("batch-import-complete", serde_json::json!({
-        "total": total,
-        "success": results.iter().filter(|r| r.success).count(),
-        "failed": results.iter().filter(|r| !r.success).count(),
-    }));
+    let _ = app_handle.emit(
+        "batch-import-complete",
+        serde_json::json!({
+            "total": total,
+            "success": results.iter().filter(|r| r.success).count(),
+            "failed": results.iter().filter(|r| !r.success).count(),
+        }),
+    );
 
     Ok(results)
 }

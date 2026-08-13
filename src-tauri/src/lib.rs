@@ -153,14 +153,14 @@ pub fn run() {
             let tray_labels = get_tray_labels();
             let show_item = MenuItem::with_id(app, "show", &tray_labels.show, true, None::<&str>)
                 .map_err(|e| {
-                    log::error!("Failed to create tray menu item 'show': {}", e);
-                    e
-                })?;
-            let quit_item =
-                MenuItem::with_id(app, "quit", &tray_labels.quit, true, None::<&str>).map_err(|e| {
-                    log::error!("Failed to create tray menu item 'quit': {}", e);
-                    e
-                })?;
+                log::error!("Failed to create tray menu item 'show': {}", e);
+                e
+            })?;
+            let quit_item = MenuItem::with_id(app, "quit", &tray_labels.quit, true, None::<&str>)
+                .map_err(|e| {
+                log::error!("Failed to create tray menu item 'quit': {}", e);
+                e
+            })?;
             let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
             let tray_app_handle = app.handle().clone();

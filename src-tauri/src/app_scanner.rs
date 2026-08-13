@@ -6,9 +6,9 @@
 //! with disk caching for fast subsequent loads.
 
 use serde::Serialize;
-use std::path::{Path, PathBuf};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::path::{Path, PathBuf};
 
 /// Information about an installed application discovered in the Start Menu.
 #[derive(Debug, Clone, Serialize)]
@@ -148,7 +148,8 @@ fn get_start_menu_paths() -> Vec<PathBuf> {
     }
 
     // System Start Menu: C:\ProgramData\Microsoft\Windows\Start Menu\Programs
-    let system_start_menu = PathBuf::from("C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs");
+    let system_start_menu =
+        PathBuf::from("C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs");
     if system_start_menu.exists() {
         paths.push(system_start_menu);
     }
@@ -220,7 +221,11 @@ fn parse_lnk_files(lnk_files: Vec<PathBuf>) -> Vec<InstalledApp> {
 
                 seen_targets.insert(target_path.clone());
                 apps.push(InstalledApp {
-                    name: props.description.clone().filter(|d| !d.is_empty()).unwrap_or(name),
+                    name: props
+                        .description
+                        .clone()
+                        .filter(|d| !d.is_empty())
+                        .unwrap_or(name),
                     target_path,
                     lnk_path: lnk_path.to_string_lossy().to_string(),
                     description: props.description,
@@ -261,10 +266,7 @@ fn parse_lnk_files(lnk_files: Vec<PathBuf>) -> Vec<InstalledApp> {
 ///
 /// Returns an empty string on failure (non-fatal — the UI shows a default icon).
 #[cfg(windows)]
-pub fn extract_icon_as_base64(
-    exe_path: &str,
-    cache_dir: Option<&Path>,
-) -> Result<String, String> {
+pub fn extract_icon_as_base64(exe_path: &str, cache_dir: Option<&Path>) -> Result<String, String> {
     // Check disk cache first
     if let Some(dir) = cache_dir {
         if let Some(cached) = read_icon_cache(dir, exe_path) {

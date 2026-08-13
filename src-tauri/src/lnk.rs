@@ -65,8 +65,12 @@ fn parse_lnk_file_windows(path: &std::path::Path) -> Result<LnkProperties, Strin
         let _ = tx.send(result);
     });
 
-    rx.recv()
-        .map_err(|e| format!("Failed to receive LNK parse result from worker thread: {}", e))?
+    rx.recv().map_err(|e| {
+        format!(
+            "Failed to receive LNK parse result from worker thread: {}",
+            e
+        )
+    })?
 }
 
 #[cfg(windows)]
@@ -104,8 +108,9 @@ fn parse_lnk_with_com(path: &std::path::Path) -> Result<LnkProperties, String> {
     let _com_guard = ComGuard;
 
     // Create ShellLink object
-    let shell_link: IShellLinkW = unsafe { CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER) }
-        .map_err(|e| format!("Failed to create ShellLink instance: {}", e))?;
+    let shell_link: IShellLinkW =
+        unsafe { CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER) }
+            .map_err(|e| format!("Failed to create ShellLink instance: {}", e))?;
 
     // Get IPersistFile interface
     let persist_file: IPersistFile = shell_link

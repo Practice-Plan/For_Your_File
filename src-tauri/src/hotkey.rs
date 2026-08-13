@@ -235,30 +235,30 @@ impl HotkeyManager {
                 use windows::Win32::UI::Input::KeyboardAndMouse::{
                     RegisterHotKey, UnregisterHotKey,
                 };
-                use windows::Win32::UI::WindowsAndMessaging::{PeekMessageW, MSG, PM_REMOVE, WM_HOTKEY};
+                use windows::Win32::UI::WindowsAndMessaging::{
+                    PeekMessageW, MSG, PM_REMOVE, WM_HOTKEY,
+                };
 
                 // Register initial hotkey in THIS thread (so messages come to this thread)
                 if initial_config.registered {
                     let mod_flags = parse_modifiers(&initial_config.modifiers);
                     match key_to_vk_code(&initial_config.key) {
-                        Ok(vk) => {
-                            unsafe {
-                                if let Err(e) =
-                                    RegisterHotKey(HWND::default(), HOTKEY_ID, mod_flags, vk)
-                                {
-                                    log::error!(
-                                        "Failed to register initial hotkey in listener thread: {}",
-                                        e
-                                    );
-                                } else {
-                                    log::info!(
-                                        "Initial hotkey registered in listener thread: {} + {}",
-                                        initial_config.modifiers,
-                                        initial_config.key
-                                    );
-                                }
+                        Ok(vk) => unsafe {
+                            if let Err(e) =
+                                RegisterHotKey(HWND::default(), HOTKEY_ID, mod_flags, vk)
+                            {
+                                log::error!(
+                                    "Failed to register initial hotkey in listener thread: {}",
+                                    e
+                                );
+                            } else {
+                                log::info!(
+                                    "Initial hotkey registered in listener thread: {} + {}",
+                                    initial_config.modifiers,
+                                    initial_config.key
+                                );
                             }
-                        }
+                        },
                         Err(e) => {
                             log::error!("Invalid key '{}': {}", initial_config.key, e);
                         }
@@ -278,33 +278,29 @@ impl HotkeyManager {
                                 }
                                 let mod_flags = parse_modifiers(&modifiers);
                                 match key_to_vk_code(&key) {
-                                    Ok(vk) => {
-                                        unsafe {
-                                            if let Err(e) = RegisterHotKey(
-                                                HWND::default(),
-                                                HOTKEY_ID,
-                                                mod_flags,
-                                                vk,
-                                            ) {
-                                                log::error!("Failed to register hotkey: {}", e);
-                                            } else {
-                                                log::info!(
-                                                    "Hotkey registered: {} + {}",
-                                                    modifiers,
-                                                    key
-                                                );
-                                            }
+                                    Ok(vk) => unsafe {
+                                        if let Err(e) = RegisterHotKey(
+                                            HWND::default(),
+                                            HOTKEY_ID,
+                                            mod_flags,
+                                            vk,
+                                        ) {
+                                            log::error!("Failed to register hotkey: {}", e);
+                                        } else {
+                                            log::info!(
+                                                "Hotkey registered: {} + {}",
+                                                modifiers,
+                                                key
+                                            );
                                         }
-                                    }
+                                    },
                                     Err(e) => log::error!("Invalid key '{}': {}", key, e),
                                 }
                             }
-                            HotkeyCommand::Unregister => {
-                                unsafe {
-                                    let _ = UnregisterHotKey(HWND::default(), HOTKEY_ID);
-                                    log::info!("Hotkey unregistered");
-                                }
-                            }
+                            HotkeyCommand::Unregister => unsafe {
+                                let _ = UnregisterHotKey(HWND::default(), HOTKEY_ID);
+                                log::info!("Hotkey unregistered");
+                            },
                             HotkeyCommand::CheckConflict(modifiers, key, reply) => {
                                 // Temporarily unregister our own hotkey to avoid
                                 // false conflict with ourselves
@@ -325,8 +321,10 @@ impl HotkeyManager {
                                         };
                                         if register_result.is_ok() {
                                             unsafe {
-                                                let _ =
-                                                    UnregisterHotKey(HWND::default(), HOTKEY_ID + 1);
+                                                let _ = UnregisterHotKey(
+                                                    HWND::default(),
+                                                    HOTKEY_ID + 1,
+                                                );
                                             }
                                             Ok(false) // No conflict
                                         } else {
@@ -480,7 +478,9 @@ fn get_config_path(app_handle: &AppHandle<tauri::Wry>) -> Result<std::path::Path
 
 /// Parse modifier string (e.g., "Alt+Ctrl") to Windows HOT_KEY_MODIFIERS flags
 #[cfg(windows)]
-fn parse_modifiers(modifiers: &str) -> windows::Win32::UI::Input::KeyboardAndMouse::HOT_KEY_MODIFIERS {
+fn parse_modifiers(
+    modifiers: &str,
+) -> windows::Win32::UI::Input::KeyboardAndMouse::HOT_KEY_MODIFIERS {
     use windows::Win32::UI::Input::KeyboardAndMouse::HOT_KEY_MODIFIERS;
 
     let mut mod_flags = HOT_KEY_MODIFIERS(0);

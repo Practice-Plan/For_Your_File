@@ -180,9 +180,7 @@ fn migrate_fts_if_needed(conn: &Connection) -> Result<(), String> {
         let mut stmt = conn
             .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='entries_fts'")
             .map_err(|e| format!("Failed to query FTS schema: {}", e))?;
-        let sql_text: Option<String> = stmt
-            .query_row([], |row| row.get(0))
-            .ok();
+        let sql_text: Option<String> = stmt.query_row([], |row| row.get(0)).ok();
         sql_text
             .map(|s| s.to_lowercase().contains("description"))
             .unwrap_or(false)
