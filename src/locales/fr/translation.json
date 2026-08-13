@@ -62,7 +62,16 @@
     "noMatchingEntries": "Aucune entrée correspondante",
     "groups": "Groupes",
     "noGroupsYet": "Pas encore de groupes",
-    "createNewGroup": "Créer un nouveau groupe"
+    "createNewGroup": "Créer un nouveau groupe",
+    "createTitle": "Créer un groupe",
+    "editTitle": "Modifier le groupe",
+    "namePlaceholder": "Entrez le nom du groupe",
+    "nameRequired": "Le nom du groupe est obligatoire",
+    "nameExists": "Un groupe avec ce nom existe déjà",
+    "custom": "Personnalisé :",
+    "previewPlaceholder": "Nom du groupe",
+    "entryCount": "{{count}} entrées dans ce groupe",
+    "deleteConfirmMessage": "Êtes-vous sûr de vouloir supprimer ce groupe ? Les entrées ne seront pas supprimées."
   },
   "sort": {
     "relevance": "Pertinence",
@@ -123,7 +132,39 @@
     "removeExpiration": "Supprimer l'expiration"
   },
   "contextMenu": {
-    "addToApp": "Ajouter au Centre de gestion de fichiers"
+    "addToApp": "Ajouter au Centre de gestion de fichiers",
+    "open": "Ouvrir",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "addToGroup": "Ajouter au groupe",
+    "removeFromGroup": "Retirer de ce groupe",
+    "removeFromGroupDisabled": "L'entrée n'est dans aucun groupe",
+    "removeFromGroupDisabledAllItems": "« Tous les éléments » n'est pas un groupe — sélectionnez d'abord un groupe",
+    "openWorkingDir": "Ouvrir le répertoire de travail"
+  },
+  "batchImport": {
+    "title": "Importation en lot",
+    "dropApp": "Glissez des fichiers .lnk ou .exe ici, ou",
+    "dropFile": "Glissez des fichiers ici, ou",
+    "dropFolder": "Glissez des dossiers ici, ou",
+    "browse": "Parcourir",
+    "unifiedConfig": "Configuration unifiée",
+    "files": "fichiers",
+    "imported": "importés",
+    "errors": "erreurs",
+    "clearAll": "Tout effacer",
+    "emptyList": "Aucun fichier ajouté. Glissez ou parcourez pour ajouter des fichiers.",
+    "searchPlaceholder": "Rechercher des fichiers...",
+    "removeImported": "Retirer les importés",
+    "pending": "en attente",
+    "importing": "Importation...",
+    "import": "Importer {{count}} entrées",
+    "import_one": "Importer {{count}} entrée",
+    "customConfig": "Configuration personnalisée",
+    "editFile": "Modifier le fichier",
+    "tagsOverrideHint": "Laisser vide pour utiliser les tags unifiés",
+    "partialFailure": "Certains imports ont échoué, erreurs :",
+    "moreErrors": "{{count}} erreurs supplémentaires..."
   },
   "status": {
     "ready": "Prêt",
@@ -161,7 +202,10 @@
     "loading": "Chargement...",
     "noData": "Aucune donnée disponible",
     "selectAll": "Sélectionner tout",
-    "selected": "sélectionné(s)"
+    "selected": "sélectionné(s)",
+    "confirmDelete": "Confirmer la suppression",
+    "deleteItemConfirm": "Êtes-vous sûr de vouloir supprimer cet élément ?",
+    "deleteShortcutHint": "Appuyez sur Échap pour annuler, Entrée pour confirmer"
   },
   "addEntry": {
     "title": "Ajouter une nouvelle entrée",
@@ -170,6 +214,8 @@
     "dragAndDrop": "Glissez-déposez un fichier .lnk ici, ou",
     "dragAndDropOptional": "Glissez-déposez un fichier .lnk ici pour le remplissage automatique, ou",
     "browseFiles": "Parcourir les fichiers",
+    "browseFile": "Parcourir fichier",
+    "browseFolder": "Parcourir dossier",
     "targetPath": "Chemin cible",
     "targetPathPlaceholder": "C:\\chemin\\vers\\cible.exe",
     "browse": "Parcourir",
@@ -179,6 +225,7 @@
     "workingDirectory": "Répertoire de travail",
     "workingDirectoryPlaceholder": "C:\\chemin\\vers\\repertoire\\travail",
     "tags": "Tags",
+    "tagsRequired": "Tags *",
     "notes": "Notes",
     "notesPlaceholder": "Ajoutez des notes sur cette entrée...",
     "cancel": "Annuler",
@@ -189,7 +236,51 @@
     "parseError": "Échec de l'analyse du fichier LNK",
     "noLnkFile": "Aucun fichier LNK téléchargé - saisissez les détails manuellement ci-dessous",
     "description": "Description",
-    "descriptionPlaceholder": "Description du raccourci"
+    "descriptionPlaceholder": "Description du raccourci",
+    "name": "Nom",
+    "nameRequired": "Nom *",
+    "namePlaceholder": "Nom de l'entrée",
+    "modeApplication": "Application",
+    "modeFile": "Fichier",
+    "modeFolder": "Dossier",
+    "modeApplicationDesc": "Ajouter une application (.lnk ou .exe)",
+    "modeFileDesc": "Ajouter un fichier",
+    "modeFolderDesc": "Ajouter un dossier",
+    "dragAndDropApp": "Glissez-déposez un fichier .lnk ou .exe ici, ou",
+    "dragAndDropFile": "Glissez-déposez un fichier ici, ou",
+    "dragAndDropFolder": "Glissez-déposez un dossier ici, ou",
+    "openMethod": "Méthode d'ouverture",
+    "openMethodDefault": "Explorateur Windows (par défaut)",
+    "openMethodApp": "Ouvrir avec une application",
+    "openMethodCustom": "Commande personnalisée",
+    "selectApp": "Sélectionner l'application",
+    "browseApps": "Parcourir les applications",
+    "customCommandFormat": "Format de commande",
+    "customCommandFormatPlaceholder": "ex., & tmp.ps1 -example",
+    "customCommandHint": "Utilisez _ comme espace réservé pour le chemin du fichier/dossier. Pour cmd/powershell, la commande s'exécute directement. Pour les autres applications, powershell s'ouvre et exécute : <app> <commande>",
+    "customCommandFolderHint": "Pour les dossiers, la commande s'exécute après 'cd <dossier>' dans powershell",
+    "runFailed": "La commande personnalisée \"{{command}}\" n'a pas pu être exécutée",
+    "requiredField": "Ce champ est obligatoire",
+    "exeFilter": "Exécutables",
+    "lnkFilter": "Fichiers LNK",
+    "allFiles": "Tous les fichiers"
+  },
+  "appSelector": {
+    "title": "Sélectionner une application",
+    "searchPlaceholder": "Rechercher des applications...",
+    "listView": "Vue en liste",
+    "thumbnailView": "Vue en miniatures",
+    "loading": "Chargement des applications...",
+    "noResults": "Aucune application trouvée",
+    "noApps": "Aucune application installée",
+    "count": "{{count}} applications"
+  },
+  "tagEditor": {
+    "placeholder": "Ajouter un tag...",
+    "addTag": "+ Ajouter un tag",
+    "tooLong": "Le tag doit contenir {{max}} caractères ou moins",
+    "alreadyExists": "Le tag existe déjà",
+    "tooMany": "Maximum {{max}} tags autorisés"
   },
   "about": {
     "title": "À propos",
@@ -197,6 +288,7 @@
     "description": "Une manière sûre et intelligente de gérer les raccourcis Windows",
     "license": "Licence",
     "authors": "Auteurs",
+    "projectUrl": "Projet",
     "close": "Fermer"
   }
 }

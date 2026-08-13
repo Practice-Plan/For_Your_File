@@ -8,15 +8,39 @@ import { GroupList } from './components/GroupList'
 import { EntryDetail } from './components/EntryDetail'
 import { AddEntryModal } from './components/AddEntryModal'
 import { CreateGroupModal } from './components/CreateGroupModal'
+import { EditGroupModal } from './components/EditGroupModal'
+import { DeleteConfirmModal } from './components/DeleteConfirmModal'
 import { HotkeySettings } from './components/HotkeySettings'
 import { InterfaceShortcutSettings } from './components/InterfaceShortcutSettings'
 import { AboutModal } from './components/AboutModal'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
+import { EntryContextMenu, type EntryContextMenuState } from './components/EntryContextMenu'
+import { BatchImportModal } from './components/BatchImportModal'
 import { useSearch } from './hooks/useSearch'
 import { useGroups } from './hooks/useGroups'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useProtocol } from './hooks/useProtocol'
 import type { SearchResult as SearchResultType, GroupWithCount, Entry } from './types'
+
+const THEME_STORAGE_KEY = 'app-theme'
+
+/**
+ * Detect the initial theme:
+ * 1. If the user has previously chosen a theme (localStorage), use it.
+ * 2. Otherwise, detect the system theme via prefers-color-scheme.
+ * 3. Default to 'light' if detection fails.
+ */
+function detectInitialTheme(): 'light' | 'dark' {
+  const saved = localStorage.getItem(THEME_STORAGE_KEY)
+  if (saved === 'light' || saved === 'dark') {
+    return saved
+  }
+  // No saved preference: follow system
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark'
+  }
+  return 'light'
+}
 
 interface WindowState {
   isMaximized: boolean
@@ -28,7 +52,7 @@ function App() {
 
   const [windowState, setWindowState] = useState<WindowState>({
     isMaximized: false,
-    theme: 'light',
+    theme: detectInitialTheme(),
   })
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -42,6 +66,12 @@ function App() {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null)
   const [groupSearchResults, setGroupSearchResults] = useState<SearchResultType[]>([])
   const [isGroupSearching, setIsGroupSearching] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<GroupWithCount | null>(null)
+  const [deletingGroupId, setDeletingGroupId] = useState<number | null>(null)
+  const [contextMenu, setContextMenu] = useState<EntryContextMenuState | null>(null)
+  const [contextMenuEntryGroupIds, setContextMenuEntryGroupIds] = useState<number[]>([])
+  const [deletingEntry, setDeletingEntry] = useState<Entry | null>(null)
+  const [showBatchImport, setShowBatchImport] = useState(false)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -106,18 +136,31 @@ function App() {
     }
   }, [])
 
-  // Handle item open (double-click or Enter)
+  // Handle item open (double-click or Enter).
+  // Dispatches to the backend `open_entry` command which honors the entry's
+  // mode (application vs file/folder), parameters, working directory, and
+  // open method. Also increments frequency and updates last_opened.
   const handleItemOpen = useCallback(async (result: SearchResultType) => {
-    // Use lnk_path if available, otherwise fall back to target_path (entries without .lnk file)
-    const pathToOpen = result.entry.lnk_path || result.entry.target_path
-    if (!pathToOpen) return
+    const entry = result.entry
+    if (!entry.target_path && !entry.lnk_path) return
 
     try {
-      await invoke('open_lnk_file', { path: pathToOpen })
+      await invoke('open_entry', {
+        params: {
+          entry_id: entry.id,
+          lnk_path: entry.lnk_path || '',
+          target_path: entry.target_path || '',
+          target_type: entry.target_type?.type || 'File',
+          parameters: entry.parameters || null,
+          working_dir: entry.working_dir || null,
+        },
+      })
+      // Refresh search results so frequency/last_opened updates are visible.
+      refreshSearch()
     } catch (err) {
-      console.error('Failed to open file:', err)
+      console.error('Failed to open entry:', err)
     }
-  }, [])
+  }, [refreshSearch])
 
   // Handle entry update from detail panel
   const handleEntryUpdate = useCallback(() => {
@@ -129,6 +172,101 @@ function App() {
     setSelectedEntryId(null)
     refreshSearch()
   }, [refreshSearch])
+
+  // Handle right-click context menu on a search result entry.
+  // Fetches the entry's group memberships so the "Add to group" submenu can
+  // show checkmarks next to groups the entry already belongs to.
+  const handleItemContextMenu = useCallback(async (result: SearchResultType, x: number, y: number) => {
+    const entry = result.entry
+    setContextMenu({ entry, x, y })
+    setContextMenuEntryGroupIds([])
+    if (entry.id !== null) {
+      try {
+        const entryGroups = await invoke<GroupWithCount[]>('get_entry_groups', { entryId: entry.id })
+        setContextMenuEntryGroupIds(entryGroups.map(g => g.id!).filter((id): id is number => id !== null))
+      } catch (err) {
+        console.error('Failed to fetch entry groups:', err)
+      }
+    }
+  }, [])
+
+  // Context menu: open the entry (same as double-click)
+  const handleContextMenuOpen = useCallback((entry: Entry) => {
+    handleItemOpen({ entry, score: 1.0 })
+  }, [handleItemOpen])
+
+  // Context menu: edit the entry (opens the detail panel)
+  const handleContextMenuEdit = useCallback((entry: Entry) => {
+    if (entry.id !== null) {
+      setSelectedEntryId(entry.id)
+    }
+  }, [])
+
+  // Context menu: delete the entry (shows confirmation)
+  const handleContextMenuDelete = useCallback((entry: Entry) => {
+    setDeletingEntry(entry)
+  }, [])
+
+  // Confirm entry deletion from the context menu
+  const handleConfirmDeleteEntry = useCallback(async () => {
+    if (!deletingEntry?.id) return
+    try {
+      await invoke('delete_entry', { id: deletingEntry.id })
+      // If the detail panel was showing this entry, close it
+      if (selectedEntryId === deletingEntry.id) {
+        setSelectedEntryId(null)
+      }
+      refreshSearch()
+      refreshGroups()
+    } catch (err) {
+      console.error('Failed to delete entry:', err)
+    } finally {
+      setDeletingEntry(null)
+    }
+  }, [deletingEntry, selectedEntryId, refreshSearch, refreshGroups])
+
+  // Context menu: add entry to a group
+  const handleContextMenuAddToGroup = useCallback(async (entry: Entry, groupId: number) => {
+    if (!entry.id) return
+    try {
+      await invoke('add_entry_to_group', { entryId: entry.id, groupId })
+      refreshGroups()
+      if (selectedGroupId === groupId) {
+        const entries = await invoke<Entry[]>('get_group_entries', { groupId })
+        setGroupSearchResults(entries.map(e => ({ entry: e, score: 1.0 })))
+      }
+    } catch (err) {
+      console.error('Failed to add entry to group:', err)
+    }
+  }, [refreshGroups, selectedGroupId])
+
+  // Context menu: remove entry from the currently-viewed group
+  const handleContextMenuRemoveFromGroup = useCallback(async (entry: Entry, groupId: number) => {
+    if (!entry.id) return
+    try {
+      await invoke('remove_entry_from_group', { entryId: entry.id, groupId })
+      refreshGroups()
+      // Refresh the current group's entries
+      if (selectedGroupId === groupId) {
+        const entries = await invoke<Entry[]>('get_group_entries', { groupId })
+        setGroupSearchResults(entries.map(e => ({ entry: e, score: 1.0 })))
+      }
+    } catch (err) {
+      console.error('Failed to remove entry from group:', err)
+    }
+  }, [refreshGroups, selectedGroupId])
+
+  // Context menu: open the entry's working directory in Windows File Explorer
+  const handleContextMenuOpenWorkingDir = useCallback(async (entry: Entry) => {
+    // Prefer working_dir if set, otherwise derive from the target path
+    const path = entry.working_dir || entry.target_path || entry.lnk_path
+    if (!path) return
+    try {
+      await invoke('open_working_directory', { path })
+    } catch (err) {
+      console.error('Failed to open working directory:', err)
+    }
+  }, [])
 
   // Handle create group - opens the CreateGroupModal (replaces window.prompt)
   const handleCreateGroup = useCallback(() => {
@@ -144,29 +282,77 @@ function App() {
     }
   }, [createGroup])
 
-  // Handle edit group
+  // Handle edit group - opens the EditGroupModal (replaces window.prompt)
   const handleEditGroup = useCallback((group: GroupWithCount) => {
-    const name = window.prompt(t('group.name'), group.name)
-    if (name !== null && name.trim() && name.trim() !== group.name) {
-      invoke('update_group', { id: group.id, name: name.trim() })
-        .then(() => refreshGroups())
-        .catch(err => console.error('Failed to update group:', err))
-    }
-  }, [refreshGroups, t])
+    setEditingGroup(group)
+  }, [])
 
-  // Handle delete group
-  const handleDeleteGroup = useCallback((groupId: number) => {
-    if (window.confirm(t('group.deleteConfirm') || 'Are you sure?')) {
-      invoke('delete_group', { id: groupId })
-        .then(() => {
-          refreshGroups()
-          if (selectedGroupId === groupId) {
-            setSelectedGroupId(null)
-          }
-        })
-        .catch(err => console.error('Failed to delete group:', err))
+  // Handle edit group save from modal
+  const handleEditGroupSave = useCallback(async (groupId: number, name: string, color: string) => {
+    try {
+      await invoke('update_group', { id: groupId, name, color })
+      refreshGroups()
+    } catch (err) {
+      console.error('Failed to update group:', err)
     }
-  }, [refreshGroups, selectedGroupId, t])
+  }, [refreshGroups])
+
+  // Handle edit group delete from modal
+  const handleEditGroupDelete = useCallback((groupId: number) => {
+    setDeletingGroupId(groupId)
+  }, [])
+
+  // Handle delete group - opens the DeleteConfirmModal (replaces window.confirm)
+  const handleDeleteGroup = useCallback((groupId: number) => {
+    setDeletingGroupId(groupId)
+  }, [])
+
+  // Handle drop to a group — adds the entry to that group
+  const handleDropToGroup = useCallback(async (entryId: number, groupId: number) => {
+    try {
+      await invoke('add_entry_to_group', { entryId, groupId })
+      refreshGroups()
+      // If currently viewing that group, refresh its entries
+      if (selectedGroupId === groupId) {
+        const entries = await invoke<Entry[]>('get_group_entries', { groupId })
+        setGroupSearchResults(entries.map(entry => ({ entry, score: 1.0 })))
+      }
+    } catch (err) {
+      console.error('Failed to add entry to group:', err)
+    }
+  }, [refreshGroups, selectedGroupId])
+
+  // Handle drop to "All Entries" — removes the entry from the current group
+  // (does NOT delete the entry, just removes the group association)
+  const handleDropToAllEntries = useCallback(async (entryId: number) => {
+    if (!selectedGroupId) return // Already viewing all entries, nothing to remove
+    try {
+      await invoke('remove_entry_from_group', { entryId, groupId: selectedGroupId })
+      refreshGroups()
+      // Refresh the current group's entries
+      const entries = await invoke<Entry[]>('get_group_entries', { groupId: selectedGroupId })
+      setGroupSearchResults(entries.map(entry => ({ entry, score: 1.0 })))
+    } catch (err) {
+      console.error('Failed to remove entry from group:', err)
+    }
+  }, [refreshGroups, selectedGroupId])
+
+  // Confirm delete group
+  const handleConfirmDeleteGroup = useCallback(async () => {
+    if (deletingGroupId === null) return
+    const groupId = deletingGroupId
+    try {
+      await invoke('delete_group', { id: groupId })
+      refreshGroups()
+      if (selectedGroupId === groupId) {
+        setSelectedGroupId(null)
+      }
+    } catch (err) {
+      console.error('Failed to delete group:', err)
+    } finally {
+      setDeletingGroupId(null)
+    }
+  }, [deletingGroupId, refreshGroups, selectedGroupId])
 
   // Handle new entry created
   const handleEntryCreated = useCallback(() => {
@@ -228,14 +414,16 @@ function App() {
   }, [])
 
   // Apply initial theme
-  useState(() => {
+  useEffect(() => {
     applyTheme(windowState.theme)
-  })
+  }, [])
 
   const toggleTheme = () => {
     const newTheme = windowState.theme === 'light' ? 'dark' : 'light'
     setWindowState(prev => ({ ...prev, theme: newTheme }))
     applyTheme(newTheme)
+    // Persist user's manual choice
+    localStorage.setItem(THEME_STORAGE_KEY, newTheme)
   }
 
   return (
@@ -258,6 +446,16 @@ function App() {
           >
             <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setShowBatchImport(true)}
+            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            title={t('batchImport.title')}
+            aria-label={t('batchImport.title')}
+          >
+            <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
             </svg>
           </button>
           <button
@@ -315,6 +513,8 @@ function App() {
               onCreateGroup={handleCreateGroup}
               onEditGroup={handleEditGroup}
               onDeleteGroup={handleDeleteGroup}
+              onDropToGroup={handleDropToGroup}
+              onDropToAllEntries={handleDropToAllEntries}
               isLoading={groupsLoading}
             />
           </div>
@@ -388,6 +588,7 @@ function App() {
                 onSelectedIndexChange={setSelectedIndex}
                 onItemSelect={handleItemSelect}
                 onItemOpen={handleItemOpen}
+                onItemContextMenu={handleItemContextMenu}
               />
             </div>
           </div>
@@ -492,6 +693,25 @@ function App() {
         existingNames={groups.map(g => g.name)}
       />
 
+      {/* Edit Group Modal */}
+      <EditGroupModal
+        isOpen={editingGroup !== null}
+        group={editingGroup}
+        onClose={() => setEditingGroup(null)}
+        onSave={handleEditGroupSave}
+        onDelete={handleEditGroupDelete}
+        existingNames={groups.map(g => g.name)}
+      />
+
+      {/* Delete Group Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deletingGroupId !== null}
+        onConfirm={handleConfirmDeleteGroup}
+        onCancel={() => setDeletingGroupId(null)}
+        title={t('group.delete')}
+        message={t('group.deleteConfirmMessage')}
+      />
+
       {/* About Modal */}
       <AboutModal
         isOpen={showAboutModal}
@@ -504,6 +724,38 @@ function App() {
         onClose={() => setSelectedEntryId(null)}
         onUpdate={handleEntryUpdate}
         onDelete={handleEntryDelete}
+      />
+
+      {/* Right-click context menu for entries */}
+      <EntryContextMenu
+        state={contextMenu}
+        onClose={() => setContextMenu(null)}
+        onOpen={handleContextMenuOpen}
+        onEdit={handleContextMenuEdit}
+        onDelete={handleContextMenuDelete}
+        onAddToGroup={handleContextMenuAddToGroup}
+        onRemoveFromGroup={handleContextMenuRemoveFromGroup}
+        onOpenWorkingDir={handleContextMenuOpenWorkingDir}
+        selectedGroupId={selectedGroupId}
+        groups={groups}
+        entryGroupIds={contextMenuEntryGroupIds}
+      />
+
+      {/* Entry delete confirmation (from context menu) */}
+      <DeleteConfirmModal
+        isOpen={deletingEntry !== null}
+        onConfirm={handleConfirmDeleteEntry}
+        onCancel={() => setDeletingEntry(null)}
+        title={t('entry.deleteEntry')}
+        message={t('entry.deleteConfirm')}
+        itemName={deletingEntry?.target_path || deletingEntry?.lnk_path}
+      />
+
+      {/* Batch Import Modal */}
+      <BatchImportModal
+        isOpen={showBatchImport}
+        onClose={() => setShowBatchImport(false)}
+        onCreated={handleEntryCreated}
       />
     </div>
   )

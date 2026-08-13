@@ -2,6 +2,7 @@
  * Modal for editing an existing group
  */
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import type { GroupWithCount } from '../types'
 
@@ -36,6 +37,7 @@ export function EditGroupModal({
   onDelete,
   existingNames,
 }: EditGroupModalProps) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [color, setColor] = useState(PRESET_COLORS[0])
   const [error, setError] = useState('')
@@ -59,13 +61,13 @@ export function EditGroupModal({
     const trimmedName = name.trim()
 
     if (!trimmedName) {
-      setError('Group name is required')
+      setError(t('group.nameRequired'))
       return
     }
 
     // Check for duplicate name (excluding current group)
     if (existingNames.some(n => n.toLowerCase() === trimmedName.toLowerCase() && n.toLowerCase() !== group.name.toLowerCase())) {
-      setError('A group with this name already exists')
+      setError(t('group.nameExists'))
       return
     }
 
@@ -101,7 +103,7 @@ export function EditGroupModal({
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Edit Group
+                {t('group.editTitle')}
               </h2>
               <button
                 type="button"
@@ -119,7 +121,7 @@ export function EditGroupModal({
               {/* Name input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Name
+                  {t('group.name')}
                 </label>
                 <input
                   type="text"
@@ -128,7 +130,7 @@ export function EditGroupModal({
                     setName(e.target.value)
                     setError('')
                   }}
-                  placeholder="Enter group name"
+                  placeholder={t('group.namePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   autoFocus
                 />
@@ -140,7 +142,7 @@ export function EditGroupModal({
               {/* Color picker */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Color
+                  {t('group.color')}
                 </label>
 
                 {/* Preset colors */}
@@ -162,7 +164,7 @@ export function EditGroupModal({
 
                 {/* Custom color input */}
                 <div className="mt-3 flex items-center gap-2">
-                  <label className="text-xs text-gray-500 dark:text-gray-400">Custom:</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">{t('group.custom')}</label>
                   <input
                     type="color"
                     value={color}
@@ -181,15 +183,14 @@ export function EditGroupModal({
 
               {/* Entry count */}
               <div className="text-xs text-gray-500 dark:text-gray-400">
-                {group.entry_count} entries in this group
+                {t('group.entryCount', { count: group.entry_count })}
               </div>
 
               {/* Delete confirmation */}
               {showDeleteConfirm ? (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                   <p className="text-sm text-red-800 dark:text-red-200 mb-2">
-                    Are you sure you want to delete this group?
-                    Entries will not be deleted.
+                    {t('group.deleteConfirmMessage')}
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -197,14 +198,14 @@ export function EditGroupModal({
                       onClick={() => setShowDeleteConfirm(false)}
                       className="flex-1 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
                       onClick={handleDelete}
                       className="flex-1 px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </div>
@@ -214,7 +215,7 @@ export function EditGroupModal({
                   onClick={() => setShowDeleteConfirm(true)}
                   className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                 >
-                  Delete group
+                  {t('group.delete')}
                 </button>
               )}
             </div>
@@ -226,13 +227,13 @@ export function EditGroupModal({
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
               >
-                Save
+                {t('common.save')}
               </button>
             </div>
           </form>

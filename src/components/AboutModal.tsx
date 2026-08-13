@@ -1,12 +1,16 @@
 /**
  * About Modal Component
  *
- * Displays application information including version, description, and license.
+ * Displays application information including version, description, license,
+ * project URL, and author URL.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { invoke } from '@tauri-apps/api/core'
+
+const PROJECT_URL = 'https://github.com/Practice-Plan/For_Your_File'
+const AUTHOR_URL = 'https://github.com/Practice-Plan'
 
 interface AboutModalProps {
   isOpen: boolean
@@ -23,10 +27,16 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
         .then(setVersion)
         .catch(err => {
           console.error('Failed to get app version:', err)
-          setVersion('0.0.1')
+          setVersion('0.0.2')
         })
     }
   }, [isOpen])
+
+  const handleOpenUrl = useCallback((url: string) => {
+    invoke('open_url', { url }).catch(err => {
+      console.error('Failed to open URL:', err)
+    })
+  }, [])
 
   return (
     <AnimatePresence>
@@ -70,11 +80,25 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500 dark:text-gray-400">{t('about.license')}</span>
-                    <span className="text-gray-900 dark:text-gray-100">MIT</span>
+                    <span className="text-gray-900 dark:text-gray-100">GPL-3.0</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm items-center">
                     <span className="text-gray-500 dark:text-gray-400">{t('about.authors')}</span>
-                    <span className="text-gray-900 dark:text-gray-100">Practice Plan</span>
+                    <button
+                      onClick={() => handleOpenUrl(AUTHOR_URL)}
+                      className="text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 hover:underline transition-colors"
+                    >
+                      Practice Plan
+                    </button>
+                  </div>
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="text-gray-500 dark:text-gray-400">{t('about.projectUrl')}</span>
+                    <button
+                      onClick={() => handleOpenUrl(PROJECT_URL)}
+                      className="text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 hover:underline transition-colors truncate max-w-[200px]"
+                    >
+                      {PROJECT_URL}
+                    </button>
                   </div>
                 </div>
               </div>

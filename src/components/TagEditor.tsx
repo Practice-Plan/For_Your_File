@@ -1,38 +1,92 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTags } from '../hooks/useTags'
 
 interface TagEditorProps {
-  initialTags?: string[]
+  /** Controlled tags array — parent is the single source of truth */
+  tags: string[]
+  /** Called immediately when tags change (add/remove) */
+  onTagsChange: (tags: string[]) => void
+  /** Existing tags for autocomplete suggestions */
   existingTags?: string[]
-  onChange?: (tags: string[]) => void
   className?: string
 }
 
+const MAX_TAGS = 10
+const MAX_TAG_LENGTH = 30
+
+/**
+ * Controlled tag editor component.
+ *
+ * The parent owns the `tags` state. All mutations (add/remove) call
+ * `onTagsChange` synchronously with the new array, so the parent's state
+ * updates in the same React batch — no useEffect sync delay.
+ */
 export function TagEditor({
-  initialTags = [],
+  tags,
+  onTagsChange,
   existingTags = [],
-  onChange,
   className = '',
 }: TagEditorProps) {
+  const { t } = useTranslation()
   const [isEditing, setIsEditing] = useState(false)
+  const [input, setInput] = useState('')
+  const [error, setError] = useState<string | undefined>(undefined)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const {
-    tags,
-    input,
-    suggestions,
-    error,
-    addTag,
-    removeTag,
-    setInput,
-  } = useTags(initialTags, { existingTags })
+  // Autocomplete suggestions based on current input
+  const suggestions = useMemo(() => {
+    if (!input.trim()) return []
+    const inputLower = input.toLowerCase()
+    return existingTags
+      .filter(
+        tag =>
+          tag.toLowerCase().includes(inputLower) &&
+          !tags.includes(tag)
+      )
+      .slice(0, 5)
+  }, [input, existingTags, tags])
 
+  // Auto-focus the input when entering edit mode
   useEffect(() => {
-    if (onChange) {
-      onChange(tags)
+    if (isEditing) {
+      inputRef.current?.focus()
     }
-  }, [tags, onChange])
+  }, [isEditing])
+
+  const addTag = (tag: string): boolean => {
+    const trimmedTag = tag.trim()
+
+    if (!trimmedTag) {
+      return false
+    }
+
+    if (trimmedTag.length > MAX_TAG_LENGTH) {
+      setError(t('tagEditor.tooLong', { max: MAX_TAG_LENGTH }))
+      return false
+    }
+
+    if (tags.includes(trimmedTag)) {
+      setError(t('tagEditor.alreadyExists'))
+      return false
+    }
+
+    if (tags.length >= MAX_TAGS) {
+      setError(t('tagEditor.tooMany', { max: MAX_TAGS }))
+      return false
+    }
+
+    // Synchronous update — parent state updates immediately
+    onTagsChange([...tags, trimmedTag])
+    setInput('')
+    setError(undefined)
+    return true
+  }
+
+  const removeTag = (tag: string) => {
+    onTagsChange(tags.filter(t => t !== tag))
+    setError(undefined)
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && input.trim()) {
@@ -43,7 +97,18 @@ export function TagEditor({
     } else if (e.key === 'Escape') {
       setIsEditing(false)
       setInput('')
+      setError(undefined)
     }
+  }
+
+  const handleBlur = () => {
+    // Add the tag on blur if input is non-empty
+    if (input.trim()) {
+      addTag(input)
+    }
+    setIsEditing(false)
+    setInput('')
+    setError(undefined)
   }
 
   const handleSuggestionClick = (tag: string) => {
@@ -87,14 +152,13 @@ export function TagEditor({
               ref={inputRef}
               type="text"
               value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onBlur={() => {
-                if (!input.trim()) {
-                  setIsEditing(false)
-                }
+              onChange={e => {
+                setInput(e.target.value)
+                setError(undefined)
               }}
-              placeholder="Add tag..."
+              onKeyDown={handleKeyDown}
+              onBlur={handleBlur}
+              placeholder={t('tagEditor.placeholder')}
               className="w-full px-2 py-1 text-sm bg-transparent border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
               autoFocus
             />
@@ -135,7 +199,7 @@ export function TagEditor({
             onClick={() => setIsEditing(true)}
             className="px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
           >
-            + Add tag
+            {t('tagEditor.addTag')}
           </button>
         )}
       </div>

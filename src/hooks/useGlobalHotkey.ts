@@ -6,8 +6,6 @@
 
 import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { listen, UnlistenFn } from '@tauri-apps/api/event'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 
 /**
  * Hotkey configuration from backend
@@ -46,6 +44,11 @@ export interface UseGlobalHotkeyReturn {
 
 /**
  * Hook for managing global hotkey functionality
+ *
+ * NOTE: This hook is for configuration management only (register, unregister,
+ * update, checkConflict, etc.). The actual window toggle on hotkey-pressed is
+ * handled exclusively by the backend listener in lib.rs. If the frontend also
+ * toggles the window, the double-toggle cancels out (show then hide = no change).
  */
 export function useGlobalHotkey(): UseGlobalHotkeyReturn {
   const [config, setConfig] = useState<HotkeyConfig | null>(null)
@@ -54,28 +57,6 @@ export function useGlobalHotkey(): UseGlobalHotkeyReturn {
   // Load initial configuration
   useEffect(() => {
     loadConfig()
-
-    // Listen for hotkey-pressed events from backend
-    let unlisten: UnlistenFn | undefined
-
-    const setupListener = async () => {
-      try {
-        unlisten = await listen('hotkey-pressed', (event) => {
-          console.log('Hotkey pressed event received:', event)
-          handleHotkeyPressed()
-        })
-      } catch (err) {
-        console.error('Failed to setup hotkey listener:', err)
-      }
-    }
-
-    setupListener()
-
-    return () => {
-      if (unlisten) {
-        unlisten()
-      }
-    }
   }, [])
 
   /**
@@ -88,27 +69,6 @@ export function useGlobalHotkey(): UseGlobalHotkeyReturn {
     } catch (err) {
       console.error('Failed to load hotkey config:', err)
       setError(`Failed to load hotkey configuration: ${err}`)
-    }
-  }
-
-  /**
-   * Handle hotkey pressed event
-   */
-  const handleHotkeyPressed = async () => {
-    try {
-      const window = getCurrentWindow()
-
-      if (await window.isVisible()) {
-        // Window is visible - hide it
-        await window.hide()
-      } else {
-        // Window is hidden - show and focus it
-        await window.show()
-        await window.setFocus()
-      }
-    } catch (err) {
-      console.error('Failed to handle hotkey press:', err)
-      setError(`Failed to toggle window: ${err}`)
     }
   }
 

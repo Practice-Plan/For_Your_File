@@ -2,6 +2,7 @@
  * Modal for creating a new group
  */
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 
 interface CreateGroupModalProps {
@@ -31,6 +32,7 @@ export function CreateGroupModal({
   onCreate,
   existingNames,
 }: CreateGroupModalProps) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [color, setColor] = useState(PRESET_COLORS[0])
   const [error, setError] = useState('')
@@ -50,12 +52,12 @@ export function CreateGroupModal({
     const trimmedName = name.trim()
 
     if (!trimmedName) {
-      setError('Group name is required')
+      setError(t('group.nameRequired'))
       return
     }
 
     if (existingNames.some(n => n.toLowerCase() === trimmedName.toLowerCase())) {
-      setError('A group with this name already exists')
+      setError(t('group.nameExists'))
       return
     }
 
@@ -85,7 +87,7 @@ export function CreateGroupModal({
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Create Group
+                {t('group.createTitle')}
               </h2>
               <button
                 type="button"
@@ -103,7 +105,7 @@ export function CreateGroupModal({
               {/* Name input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Name
+                  {t('group.name')}
                 </label>
                 <input
                   type="text"
@@ -112,7 +114,7 @@ export function CreateGroupModal({
                     setName(e.target.value)
                     setError('')
                   }}
-                  placeholder="Enter group name"
+                  placeholder={t('group.namePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   autoFocus
                 />
@@ -124,7 +126,7 @@ export function CreateGroupModal({
               {/* Color picker */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Color
+                  {t('group.color')}
                 </label>
 
                 {/* Preset colors */}
@@ -146,7 +148,7 @@ export function CreateGroupModal({
 
                 {/* Custom color input */}
                 <div className="mt-3 flex items-center gap-2">
-                  <label className="text-xs text-gray-500 dark:text-gray-400">Custom:</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">{t('group.custom')}</label>
                   <input
                     type="color"
                     value={color}
@@ -170,7 +172,7 @@ export function CreateGroupModal({
                   style={{ backgroundColor: color }}
                 />
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {name.trim() || 'Group name'}
+                  {name.trim() || t('group.previewPlaceholder')}
                 </span>
               </div>
             </div>
@@ -182,13 +184,13 @@ export function CreateGroupModal({
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
               >
-                Create
+                {t('group.create')}
               </button>
             </div>
           </form>

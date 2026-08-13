@@ -62,7 +62,16 @@
     "noMatchingEntries": "Нет соответствующих записей",
     "groups": "Группы",
     "noGroupsYet": "Групп пока нет",
-    "createNewGroup": "Создать новую группу"
+    "createNewGroup": "Создать новую группу",
+    "createTitle": "Создать группу",
+    "editTitle": "Редактировать группу",
+    "namePlaceholder": "Введите название группы",
+    "nameRequired": "Название группы обязательно",
+    "nameExists": "Группа с таким названием уже существует",
+    "custom": "Свой:",
+    "previewPlaceholder": "Название группы",
+    "entryCount": "{{count}} записей в этой группе",
+    "deleteConfirmMessage": "Вы уверены, что хотите удалить эту группу? Записи не будут удалены."
   },
   "sort": {
     "relevance": "Релевантность",
@@ -123,7 +132,39 @@
     "removeExpiration": "Удалить срок"
   },
   "contextMenu": {
-    "addToApp": "Добавить в Центр управления файлами"
+    "addToApp": "Добавить в Центр управления файлами",
+    "open": "Открыть",
+    "edit": "Изменить",
+    "delete": "Удалить",
+    "addToGroup": "Добавить в группу",
+    "removeFromGroup": "Удалить из этой группы",
+    "removeFromGroupDisabled": "Запись не состоит в группе",
+    "removeFromGroupDisabledAllItems": "«Все элементы» не является группой — сначала выберите группу",
+    "openWorkingDir": "Открыть рабочий каталог"
+  },
+  "batchImport": {
+    "title": "Массовый импорт",
+    "dropApp": "Перетащите файлы .lnk или .exe сюда, или",
+    "dropFile": "Перетащите файлы сюда, или",
+    "dropFolder": "Перетащите папки сюда, или",
+    "browse": "Обзор файлов",
+    "unifiedConfig": "Единая конфигурация",
+    "files": "файлов",
+    "imported": "импортировано",
+    "errors": "ошибок",
+    "clearAll": "Очистить всё",
+    "emptyList": "Файлы не добавлены. Перетащите или нажмите «Обзор» для добавления.",
+    "searchPlaceholder": "Поиск файлов...",
+    "removeImported": "Убрать импортированные",
+    "pending": "ожидает",
+    "importing": "Импорт...",
+    "import": "Импортировать {{count}} записей",
+    "import_one": "Импортировать {{count}} запись",
+    "customConfig": "Индивидуальная конфигурация",
+    "editFile": "Изменить файл",
+    "tagsOverrideHint": "Оставьте пустым для использования единых тегов",
+    "partialFailure": "Некоторые импорты не удались, ошибки:",
+    "moreErrors": "Ещё {{count}} ошибок..."
   },
   "status": {
     "ready": "Готов",
@@ -161,7 +202,10 @@
     "loading": "Загрузка...",
     "noData": "Нет данных",
     "selectAll": "Выбрать все",
-    "selected": "выбрано"
+    "selected": "выбрано",
+    "confirmDelete": "Подтвердить удаление",
+    "deleteItemConfirm": "Вы уверены, что хотите удалить этот элемент?",
+    "deleteShortcutHint": "Нажмите Esc для отмены, Enter для подтверждения"
   },
   "addEntry": {
     "title": "Добавить новую запись",
@@ -170,6 +214,8 @@
     "dragAndDrop": "Перетащите файл .lnk сюда, или",
     "dragAndDropOptional": "Перетащите файл .lnk сюда для автозаполнения, или",
     "browseFiles": "Обзор файлов",
+    "browseFile": "Выбрать файл",
+    "browseFolder": "Выбрать папку",
     "targetPath": "Целевой путь",
     "targetPathPlaceholder": "C:\\путь\\к\\цели.exe",
     "browse": "Обзор",
@@ -179,6 +225,7 @@
     "workingDirectory": "Рабочий каталог",
     "workingDirectoryPlaceholder": "C:\\путь\\к\\рабочему\\каталогу",
     "tags": "Теги",
+    "tagsRequired": "Теги *",
     "notes": "Заметки",
     "notesPlaceholder": "Добавьте заметки об этой записи...",
     "cancel": "Отмена",
@@ -189,7 +236,51 @@
     "parseError": "Не удалось проанализировать файл LNK",
     "noLnkFile": "Файл LNK не загружен - введите данные вручную ниже",
     "description": "Описание",
-    "descriptionPlaceholder": "Описание ярлыка"
+    "descriptionPlaceholder": "Описание ярлыка",
+    "name": "Название",
+    "nameRequired": "Название *",
+    "namePlaceholder": "Название записи",
+    "modeApplication": "Приложение",
+    "modeFile": "Файл",
+    "modeFolder": "Папка",
+    "modeApplicationDesc": "Добавить приложение (.lnk или .exe)",
+    "modeFileDesc": "Добавить любой файл",
+    "modeFolderDesc": "Добавить папку",
+    "dragAndDropApp": "Перетащите файл .lnk или .exe сюда, или",
+    "dragAndDropFile": "Перетащите файл сюда, или",
+    "dragAndDropFolder": "Перетащите папку сюда, или",
+    "openMethod": "Метод открытия",
+    "openMethodDefault": "Проводник Windows (по умолчанию)",
+    "openMethodApp": "Открыть с помощью приложения",
+    "openMethodCustom": "Пользовательская команда",
+    "selectApp": "Выбрать приложение",
+    "browseApps": "Обзор приложений",
+    "customCommandFormat": "Формат команды",
+    "customCommandFormatPlaceholder": "напр., & tmp.ps1 -example",
+    "customCommandHint": "Используйте _ как заполнитель для пути к файлу/папке. Для cmd/powershell команда выполняется напрямую. Для других приложений powershell открывается и выполняет: <app> <command>",
+    "customCommandFolderHint": "Для папок команда выполняется после 'cd <folder>' в powershell",
+    "runFailed": "Не удалось выполнить пользовательскую команду \"{{command}}\"",
+    "requiredField": "Это поле обязательно",
+    "exeFilter": "Исполняемые файлы",
+    "lnkFilter": "Файлы LNK",
+    "allFiles": "Все файлы"
+  },
+  "appSelector": {
+    "title": "Выбрать приложение",
+    "searchPlaceholder": "Поиск приложений...",
+    "listView": "Список",
+    "thumbnailView": "Миниатюры",
+    "loading": "Загрузка приложений...",
+    "noResults": "Приложения не найдены",
+    "noApps": "Нет установленных приложений",
+    "count": "{{count}} приложений"
+  },
+  "tagEditor": {
+    "placeholder": "Добавить тег...",
+    "addTag": "+ Добавить тег",
+    "tooLong": "Тег должен содержать не более {{max}} символов",
+    "alreadyExists": "Тег уже существует",
+    "tooMany": "Максимум {{max}} тегов"
   },
   "about": {
     "title": "О программе",
@@ -197,6 +288,7 @@
     "description": "Безопасный и интеллектуальный способ управления ярлыками Windows",
     "license": "Лицензия",
     "authors": "Авторы",
+    "projectUrl": "Проект",
     "close": "Закрыть"
   }
 }

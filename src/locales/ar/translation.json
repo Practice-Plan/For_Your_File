@@ -62,7 +62,16 @@
     "noMatchingEntries": "لا توجد إدخالات مطابقة",
     "groups": "المجموعات",
     "noGroupsYet": "لا توجد مجموعات بعد",
-    "createNewGroup": "إنشاء مجموعة جديدة"
+    "createNewGroup": "إنشاء مجموعة جديدة",
+    "createTitle": "إنشاء مجموعة",
+    "editTitle": "تحرير المجموعة",
+    "namePlaceholder": "أدخل اسم المجموعة",
+    "nameRequired": "اسم المجموعة مطلوب",
+    "nameExists": "مجموعة بهذا الاسم موجودة بالفعل",
+    "custom": "مخصص:",
+    "previewPlaceholder": "اسم المجموعة",
+    "entryCount": "{{count}} إدخالات في هذه المجموعة",
+    "deleteConfirmMessage": "هل أنت متأكد من أنك تريد حذف هذه المجموعة؟ لن يتم حذف الإدخالات."
   },
   "sort": {
     "relevance": "الصلة",
@@ -123,7 +132,39 @@
     "removeExpiration": "إزالة تاريخ الانتهاء"
   },
   "contextMenu": {
-    "addToApp": "إضافة إلى مركز إدارة الملفات"
+    "addToApp": "إضافة إلى مركز إدارة الملفات",
+    "open": "فتح",
+    "edit": "تحرير",
+    "delete": "حذف",
+    "addToGroup": "إضافة إلى المجموعة",
+    "removeFromGroup": "إزالة من هذه المجموعة",
+    "removeFromGroupDisabled": "العنصر ليس في أي مجموعة",
+    "removeFromGroupDisabledAllItems": "«كل العناصر» ليست مجموعة — اختر مجموعة أولاً",
+    "openWorkingDir": "فتح دليل العمل"
+  },
+  "batchImport": {
+    "title": "استيراد دفعي",
+    "dropApp": "اسحب ملفات .lnk أو .exe هنا، أو",
+    "dropFile": "اسحب الملفات هنا، أو",
+    "dropFolder": "اسحب المجلدات هنا، أو",
+    "browse": "تصفح الملفات",
+    "unifiedConfig": "تكوين موحد",
+    "files": "ملفات",
+    "imported": "تم الاستيراد",
+    "errors": "أخطاء",
+    "clearAll": "مسح الكل",
+    "emptyList": "لم تتم إضافة ملفات. اسحب أو تصفح لإضافة ملفات.",
+    "searchPlaceholder": "البحث في الملفات...",
+    "removeImported": "إزالة المستوردة",
+    "pending": "قيد الانتظار",
+    "importing": "جارٍ الاستيراد...",
+    "import": "استيراد {{count}} عنصر",
+    "import_one": "استيراد {{count}} عنصر",
+    "customConfig": "تكوين مخصص",
+    "editFile": "تحرير الملف",
+    "tagsOverrideHint": "اتركه فارغًا لاستخدام العلامات الموحدة",
+    "partialFailure": "فشل استيراد بعض الملفات، الأخطاء:",
+    "moreErrors": "{{count}} أخطاء إضافية..."
   },
   "status": {
     "ready": "جاهز",
@@ -161,7 +202,10 @@
     "loading": "جاري التحميل...",
     "noData": "لا توجد بيانات متاحة",
     "selectAll": "تحديد الكل",
-    "selected": "محدد"
+    "selected": "محدد",
+    "confirmDelete": "تأكيد الحذف",
+    "deleteItemConfirm": "هل أنت متأكد من أنك تريد حذف هذا العنصر؟",
+    "deleteShortcutHint": "اضغط Esc للإلغاء، Enter للتأكيد"
   },
   "addEntry": {
     "title": "إضافة إدخال جديد",
@@ -170,6 +214,8 @@
     "dragAndDrop": "اسحب ملف .lnk وأفلت هنا، أو",
     "dragAndDropOptional": "اسحب ملف .lnk وأفلت هنا للتعبئة التلقائية، أو",
     "browseFiles": "استعراض الملفات",
+    "browseFile": "اختر ملف",
+    "browseFolder": "اختر مجلد",
     "targetPath": "المسار المستهدف",
     "targetPathPlaceholder": "C:\\path\\to\\target.exe",
     "browse": "استعراض",
@@ -179,6 +225,7 @@
     "workingDirectory": "دليل العمل",
     "workingDirectoryPlaceholder": "C:\\path\\to\\working\\dir",
     "tags": "العلامات",
+    "tagsRequired": "العلامات *",
     "notes": "الملاحظات",
     "notesPlaceholder": "أضف ملاحظات حول هذا الإدخال...",
     "cancel": "إلغاء",
@@ -189,7 +236,51 @@
     "parseError": "فشل في تحليل ملف LNK",
     "noLnkFile": "لم يتم رفع ملف LNK - أدخل التفاصيل يدوياً أدناه",
     "description": "الوصف",
-    "descriptionPlaceholder": "وصف الاختصار"
+    "descriptionPlaceholder": "وصف الاختصار",
+    "name": "الاسم",
+    "nameRequired": "الاسم *",
+    "namePlaceholder": "اسم الإدخال",
+    "modeApplication": "تطبيق",
+    "modeFile": "ملف",
+    "modeFolder": "مجلد",
+    "modeApplicationDesc": "إضافة تطبيق (.lnk أو .exe)",
+    "modeFileDesc": "إضافة أي ملف",
+    "modeFolderDesc": "إضافة مجلد",
+    "dragAndDropApp": "اسحب ملف .lnk أو .exe وأفلت هنا، أو",
+    "dragAndDropFile": "اسحب ملفاً وأفلت هنا، أو",
+    "dragAndDropFolder": "اسحب مجلداً وأفلت هنا، أو",
+    "openMethod": "طريقة الفتح",
+    "openMethodDefault": "مستكشف Windows (افتراضي)",
+    "openMethodApp": "فتح باستخدام تطبيق",
+    "openMethodCustom": "أمر مخصص",
+    "selectApp": "اختر التطبيق",
+    "browseApps": "تصفح التطبيقات",
+    "customCommandFormat": "تنسيق الأمر",
+    "customCommandFormatPlaceholder": "مثال، & tmp.ps1 -example",
+    "customCommandHint": "استخدم _ كعنصر نائب لمسار الملف/المجلد. بالنسبة لـ cmd/powershell، يتم تشغيل الأمر مباشرة. للتطبيقات الأخرى، يفتح powershell وينفذ: <app> <command>",
+    "customCommandFolderHint": "بالنسبة للمجلدات، يتم تشغيل الأمر بعد 'cd <folder>' في powershell",
+    "runFailed": "فشل في تشغيل الأمر المخصص \"{{command}}\"",
+    "requiredField": "هذا الحقل مطلوب",
+    "exeFilter": "ملفات قابلة للتنفيذ",
+    "lnkFilter": "ملفات LNK",
+    "allFiles": "جميع الملفات"
+  },
+  "appSelector": {
+    "title": "اختر تطبيقاً",
+    "searchPlaceholder": "البحث عن التطبيقات...",
+    "listView": "عرض القائمة",
+    "thumbnailView": "عرض المصغرات",
+    "loading": "جاري تحميل التطبيقات...",
+    "noResults": "لم يتم العثور على تطبيقات",
+    "noApps": "لا توجد تطبيقات مثبتة",
+    "count": "{{count}} تطبيق"
+  },
+  "tagEditor": {
+    "placeholder": "إضافة علامة...",
+    "addTag": "+ إضافة علامة",
+    "tooLong": "يجب ألا تتجاوز العلامة {{max}} حرفاً",
+    "alreadyExists": "العلامة موجودة بالفعل",
+    "tooMany": "الحد الأقصى {{max}} علامة"
   },
   "about": {
     "title": "حول",
@@ -197,6 +288,7 @@
     "description": "طريقة آمنة وذكية لإدارة اختصارات Windows",
     "license": "الترخيص",
     "authors": "المؤلفون",
+    "projectUrl": "المشروع",
     "close": "إغلاق"
   }
 }

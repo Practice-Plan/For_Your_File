@@ -14,6 +14,7 @@ interface SearchResultsProps {
   onSelectedIndexChange: (index: number) => void
   onItemSelect: (result: SearchResult) => void
   onItemOpen: (result: SearchResult) => void
+  onItemContextMenu?: (result: SearchResult, x: number, y: number) => void
 }
 
 /**
@@ -29,6 +30,7 @@ export function SearchResults({
   onSelectedIndexChange,
   onItemSelect,
   onItemOpen,
+  onItemContextMenu,
 }: SearchResultsProps) {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -161,7 +163,30 @@ export function SearchResults({
     >
       <AnimatePresence>
         {results.map((result, index) => (
-          <div key={result.entry.id ?? index} data-index={index}>
+          <div
+            key={result.entry.id ?? index}
+            data-index={index}
+            draggable={result.entry.id !== null}
+            onDragStart={(e) => {
+              if (result.entry.id !== null) {
+                e.dataTransfer.setData('text/plain', String(result.entry.id))
+                e.dataTransfer.effectAllowed = 'link'
+              }
+            }}
+            onDragEnd={(e) => {
+              e.currentTarget.classList.remove('opacity-50')
+            }}
+            onDrag={(e) => {
+              e.currentTarget.classList.add('opacity-50')
+            }}
+            onContextMenu={(e) => {
+              if (onItemContextMenu) {
+                e.preventDefault()
+                onSelectedIndexChange(index)
+                onItemContextMenu(result, e.clientX, e.clientY)
+              }
+            }}
+          >
             <SearchResultItem
               id={String(result.entry.id)}
               lnkPath={result.entry.lnk_path}

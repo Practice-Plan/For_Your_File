@@ -217,8 +217,8 @@ export function EntryDetail({ entryId, onClose, onUpdate, onDelete }: EntryDetai
                         {t('entry.tags')}
                       </label>
                       <TagEditor
-                        initialTags={entry.tags ? entry.tags.split(',').map(t => t.trim()) : []}
-                        onChange={handleTagsChange}
+                        tags={entry.tags ? entry.tags.split(',').map(t => t.trim()) : []}
+                        onTagsChange={handleTagsChange}
                       />
                     </div>
 

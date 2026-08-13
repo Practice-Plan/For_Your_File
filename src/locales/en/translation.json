@@ -62,7 +62,16 @@
     "noMatchingEntries": "No matching entries",
     "groups": "Groups",
     "noGroupsYet": "No groups yet",
-    "createNewGroup": "Create new group"
+    "createNewGroup": "Create new group",
+    "createTitle": "Create Group",
+    "editTitle": "Edit Group",
+    "namePlaceholder": "Enter group name",
+    "nameRequired": "Group name is required",
+    "nameExists": "A group with this name already exists",
+    "custom": "Custom:",
+    "previewPlaceholder": "Group name",
+    "entryCount": "{{count}} entries in this group",
+    "deleteConfirmMessage": "Are you sure you want to delete this group? Entries will not be deleted."
   },
   "sort": {
     "relevance": "Relevance",
@@ -123,7 +132,39 @@
     "removeExpiration": "Remove expiration"
   },
   "contextMenu": {
-    "addToApp": "Add to File Management Center"
+    "addToApp": "Add to File Management Center",
+    "open": "Open",
+    "edit": "Edit",
+    "delete": "Delete",
+    "addToGroup": "Add to group",
+    "removeFromGroup": "Remove from this group",
+    "removeFromGroupDisabled": "Entry is not in a group",
+    "removeFromGroupDisabledAllItems": "All Items is not a group — select a group first",
+    "openWorkingDir": "Open working directory"
+  },
+  "batchImport": {
+    "title": "Batch Import",
+    "dropApp": "Drag and drop .lnk or .exe files here, or",
+    "dropFile": "Drag and drop files here, or",
+    "dropFolder": "Drag and drop folders here, or",
+    "browse": "Browse Files",
+    "unifiedConfig": "Unified Configuration",
+    "files": "files",
+    "imported": "imported",
+    "errors": "errors",
+    "clearAll": "Clear All",
+    "emptyList": "No files added yet. Drag and drop or browse to add files.",
+    "searchPlaceholder": "Search files...",
+    "removeImported": "Remove imported",
+    "pending": "pending",
+    "importing": "Importing...",
+    "import": "Import {{count}} entries",
+    "import_one": "Import {{count}} entry",
+    "customConfig": "Custom configuration",
+    "editFile": "Edit file",
+    "tagsOverrideHint": "Leave empty to use unified tags",
+    "partialFailure": "Some imports failed, errors:",
+    "moreErrors": "{{count}} more errors..."
   },
   "status": {
     "ready": "Ready",
@@ -161,7 +202,10 @@
     "loading": "Loading...",
     "noData": "No data available",
     "selectAll": "Select all",
-    "selected": "selected"
+    "selected": "selected",
+    "confirmDelete": "Confirm Delete",
+    "deleteItemConfirm": "Are you sure you want to delete this item?",
+    "deleteShortcutHint": "Press Esc to cancel, Enter to confirm"
   },
   "addEntry": {
     "title": "Add New Entry",
@@ -170,6 +214,8 @@
     "dragAndDrop": "Drag and drop a .lnk file here, or",
     "dragAndDropOptional": "Drag and drop a .lnk file here to auto-fill, or",
     "browseFiles": "Browse Files",
+    "browseFile": "Browse File",
+    "browseFolder": "Browse Folder",
     "targetPath": "Target Path",
     "targetPathPlaceholder": "C:\\path\\to\\target.exe",
     "browse": "Browse",
@@ -179,6 +225,7 @@
     "workingDirectory": "Working Directory",
     "workingDirectoryPlaceholder": "C:\\path\\to\\working\\dir",
     "tags": "Tags",
+    "tagsRequired": "Tags *",
     "notes": "Notes",
     "notesPlaceholder": "Add notes about this entry...",
     "cancel": "Cancel",
@@ -189,7 +236,51 @@
     "parseError": "Failed to parse LNK file",
     "noLnkFile": "No LNK file uploaded - manually enter details below",
     "description": "Description",
-    "descriptionPlaceholder": "Shortcut description"
+    "descriptionPlaceholder": "Shortcut description",
+    "name": "Name",
+    "nameRequired": "Name *",
+    "namePlaceholder": "Entry name",
+    "modeApplication": "Application",
+    "modeFile": "File",
+    "modeFolder": "Folder",
+    "modeApplicationDesc": "Add an application (.lnk or .exe)",
+    "modeFileDesc": "Add any file",
+    "modeFolderDesc": "Add a folder",
+    "dragAndDropApp": "Drag and drop a .lnk or .exe file here, or",
+    "dragAndDropFile": "Drag and drop a file here, or",
+    "dragAndDropFolder": "Drag and drop a folder here, or",
+    "openMethod": "Open Method",
+    "openMethodDefault": "Windows Explorer (default)",
+    "openMethodApp": "Open with application",
+    "openMethodCustom": "Custom command",
+    "selectApp": "Select Application",
+    "browseApps": "Browse Apps",
+    "customCommandFormat": "Command Format",
+    "customCommandFormatPlaceholder": "e.g., & tmp.ps1 -example",
+    "customCommandHint": "Use _ as placeholder for file/folder path. For cmd/powershell, the command runs directly. For other apps, powershell opens and runs: <app> <command>",
+    "customCommandFolderHint": "For folders, the command runs after 'cd <folder>' in powershell",
+    "runFailed": "Custom command \"{{command}}\" failed to run",
+    "requiredField": "This field is required",
+    "exeFilter": "Executables",
+    "lnkFilter": "LNK Files",
+    "allFiles": "All Files"
+  },
+  "appSelector": {
+    "title": "Select Application",
+    "searchPlaceholder": "Search applications...",
+    "listView": "List View",
+    "thumbnailView": "Thumbnail View",
+    "loading": "Loading applications...",
+    "noResults": "No applications found",
+    "noApps": "No applications installed",
+    "count": "{{count}} applications"
+  },
+  "tagEditor": {
+    "placeholder": "Add tag...",
+    "addTag": "+ Add tag",
+    "tooLong": "Tag must be {{max}} characters or less",
+    "alreadyExists": "Tag already exists",
+    "tooMany": "Maximum {{max}} tags allowed"
   },
   "about": {
     "title": "About",
@@ -197,6 +288,7 @@
     "description": "A safe and intelligent way to manage Windows shortcuts",
     "license": "License",
     "authors": "Authors",
+    "projectUrl": "Project",
     "close": "Close"
   }
 }

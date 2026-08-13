@@ -62,7 +62,16 @@
     "noMatchingEntries": "没有匹配的项目",
     "groups": "分组",
     "noGroupsYet": "暂无分组",
-    "createNewGroup": "创建新分组"
+    "createNewGroup": "创建新分组",
+    "createTitle": "创建分组",
+    "editTitle": "编辑分组",
+    "namePlaceholder": "输入分组名称",
+    "nameRequired": "分组名称为必填项",
+    "nameExists": "已存在同名分组",
+    "custom": "自定义：",
+    "previewPlaceholder": "分组名称",
+    "entryCount": "此分组中有 {{count}} 个项目",
+    "deleteConfirmMessage": "确定要删除此分组吗？项目不会被删除。"
   },
   "sort": {
     "relevance": "相关度",
@@ -123,7 +132,39 @@
     "removeExpiration": "移除过期时间"
   },
   "contextMenu": {
-    "addToApp": "添加到文件管理中心"
+    "addToApp": "添加到文件管理中心",
+    "open": "打开",
+    "edit": "编辑",
+    "delete": "删除",
+    "addToGroup": "添加到组",
+    "removeFromGroup": "从该组移除",
+    "removeFromGroupDisabled": "项目不在任何组中",
+    "removeFromGroupDisabledAllItems": "\u201c全部项目\u201d不是组 — 请先选择一个组",
+    "openWorkingDir": "在文件管理器中打开工作路径"
+  },
+  "batchImport": {
+    "title": "批量导入",
+    "dropApp": "拖放 .lnk 或 .exe 文件到此处，或",
+    "dropFile": "拖放文件到此处，或",
+    "dropFolder": "拖放文件夹到此处，或",
+    "browse": "浏览文件",
+    "unifiedConfig": "统一配置",
+    "files": "个文件",
+    "imported": "已导入",
+    "errors": "失败",
+    "clearAll": "全部清除",
+    "emptyList": "尚未添加文件。拖放或浏览以添加文件。",
+    "searchPlaceholder": "搜索文件...",
+    "removeImported": "移除已导入",
+    "pending": "待导入",
+    "importing": "导入中...",
+    "import": "导入 {{count}} 个项目",
+    "import_one": "导入 {{count}} 个项目",
+    "customConfig": "自定义配置",
+    "editFile": "编辑文件",
+    "tagsOverrideHint": "留空则使用统一标签",
+    "partialFailure": "部分导入失败，错误原因：",
+    "moreErrors": "还有 {{count}} 条错误..."
   },
   "status": {
     "ready": "就绪",
@@ -161,7 +202,10 @@
     "loading": "加载中...",
     "noData": "暂无数据",
     "selectAll": "全选",
-    "selected": "已选择"
+    "selected": "已选择",
+    "confirmDelete": "确认删除",
+    "deleteItemConfirm": "确定要删除此项吗？",
+    "deleteShortcutHint": "按 Esc 取消，按 Enter 确认"
   },
   "addEntry": {
     "title": "添加新项目",
@@ -170,6 +214,8 @@
     "dragAndDrop": "将 .lnk 文件拖放到此处，或",
     "dragAndDropOptional": "将 .lnk 文件拖放到此处以自动填充，或",
     "browseFiles": "浏览文件",
+    "browseFile": "浏览文件",
+    "browseFolder": "浏览文件夹",
     "targetPath": "目标路径",
     "targetPathPlaceholder": "C:\\path\\to\\target.exe",
     "browse": "浏览",
@@ -179,6 +225,7 @@
     "workingDirectory": "工作目录",
     "workingDirectoryPlaceholder": "C:\\path\\to\\working\\dir",
     "tags": "标签",
+    "tagsRequired": "标签 *",
     "notes": "备注",
     "notesPlaceholder": "添加关于此项目的备注...",
     "cancel": "取消",
@@ -189,7 +236,51 @@
     "parseError": "解析 LNK 文件失败",
     "noLnkFile": "未上传 LNK 文件 - 请在下方手动输入详情",
     "description": "描述",
-    "descriptionPlaceholder": "快捷方式描述"
+    "descriptionPlaceholder": "快捷方式描述",
+    "name": "名称",
+    "nameRequired": "名称 *",
+    "namePlaceholder": "项目名称",
+    "modeApplication": "应用程序",
+    "modeFile": "文件",
+    "modeFolder": "文件夹",
+    "modeApplicationDesc": "添加应用程序（.lnk 或 .exe）",
+    "modeFileDesc": "添加任意文件",
+    "modeFolderDesc": "添加文件夹",
+    "dragAndDropApp": "将 .lnk 或 .exe 文件拖放到此处，或",
+    "dragAndDropFile": "将文件拖放到此处，或",
+    "dragAndDropFolder": "将文件夹拖放到此处，或",
+    "openMethod": "打开方式",
+    "openMethodDefault": "Windows 文件管理器（默认）",
+    "openMethodApp": "用应用程序打开",
+    "openMethodCustom": "自定义命令",
+    "selectApp": "选择应用程序",
+    "browseApps": "电脑内应用",
+    "customCommandFormat": "命令格式",
+    "customCommandFormatPlaceholder": "例如：& tmp.ps1 -example",
+    "customCommandHint": "使用 _ 作为文件/文件夹路径的占位符。对于 cmd/powershell，命令直接运行。对于其他应用，打开 powershell 并运行：<应用> <命令>",
+    "customCommandFolderHint": "对于文件夹，命令在 powershell 中执行 'cd <文件夹>' 之后运行",
+    "runFailed": "用户自定义命令 \"{{command}}\" 运行失败",
+    "requiredField": "此字段为必填项",
+    "exeFilter": "可执行文件",
+    "lnkFilter": "LNK 文件",
+    "allFiles": "所有文件"
+  },
+  "appSelector": {
+    "title": "选择应用程序",
+    "searchPlaceholder": "搜索应用程序...",
+    "listView": "列表视图",
+    "thumbnailView": "缩略图视图",
+    "loading": "正在加载应用程序...",
+    "noResults": "未找到应用程序",
+    "noApps": "未安装应用程序",
+    "count": "{{count}} 个应用程序"
+  },
+  "tagEditor": {
+    "placeholder": "添加标签...",
+    "addTag": "+ 添加标签",
+    "tooLong": "标签最多 {{max}} 个字符",
+    "alreadyExists": "标签已存在",
+    "tooMany": "最多 {{max}} 个标签"
   },
   "about": {
     "title": "关于",
@@ -197,6 +288,7 @@
     "description": "安全智能的 Windows 快捷方式管理工具",
     "license": "许可证",
     "authors": "作者",
+    "projectUrl": "项目",
     "close": "关闭"
   }
 }

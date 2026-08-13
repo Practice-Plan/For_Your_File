@@ -120,9 +120,9 @@ export function useSearch(
             limit: response.limit,
           }
         } catch (tauriError) {
-          // If Tauri backend is not available, use mock data
-          console.warn('Tauri backend not available, using mock data:', tauriError)
-          paginatedResults = await mockSearch(searchQuery, offset, limitRef.current)
+          // Surface the real error instead of silently falling back to mock data
+          console.error('Search backend error:', tauriError)
+          throw tauriError
         }
 
         // Cache results
@@ -180,8 +180,9 @@ export function useSearch(
     }
   }, [query, results, enableCache, recentSearches, maxCacheSize])
 
-  // Refresh current search
+  // Refresh current search — clears cache to ensure fresh results
   const refresh = useCallback(async () => {
+    cacheRef.current.clear()
     offsetRef.current = 0
     await performSearch(query, 0)
   }, [query, performSearch])
@@ -213,97 +214,5 @@ export function useSearch(
     clearSearch,
     recentSearches,
     refresh,
-  }
-}
-
-/**
- * Mock search function for development/testing
- */
-async function mockSearch(
-  query: string,
-  offset: number,
-  limit: number
-): Promise<PaginatedResults> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 200))
-
-  // Mock data
-  const mockEntries: Entry[] = [
-    {
-      id: 1,
-      lnk_path: 'C:\\Users\\User\\Desktop\\Chrome.lnk',
-      target_path: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      target_type: { type: 'File', path: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' },
-      parameters: '--profile-directory="Default"',
-      working_dir: 'C:\\Program Files\\Google\\Chrome\\Application',
-      tags: 'browser,web,internet',
-      notes: 'Default browser shortcut',
-      frequency: 150,
-      last_opened: Date.now() - 3600000,
-      created_at: Date.now() - 86400000 * 30,
-      updated_at: Date.now() - 86400000,
-    },
-    {
-      id: 2,
-      lnk_path: 'C:\\Users\\User\\Desktop\\VS Code.lnk',
-      target_path: 'C:\\Users\\User\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe',
-      target_type: { type: 'File', path: 'C:\\Users\\User\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe' },
-      parameters: '',
-      working_dir: '',
-      tags: 'development,editor,code',
-      notes: 'Primary code editor',
-      frequency: 89,
-      last_opened: Date.now() - 7200000,
-      created_at: Date.now() - 86400000 * 60,
-      updated_at: Date.now() - 86400000 * 2,
-    },
-    {
-      id: 3,
-      lnk_path: 'C:\\Users\\User\\Desktop\\Documents.lnk',
-      target_path: 'C:\\Users\\User\\Documents',
-      target_type: { type: 'Folder', path: 'C:\\Users\\User\\Documents' },
-      tags: 'folder,documents',
-      frequency: 45,
-      last_opened: Date.now() - 14400000,
-      created_at: Date.now() - 86400000 * 90,
-      updated_at: Date.now() - 86400000 * 5,
-    },
-    {
-      id: 4,
-      lnk_path: 'C:\\Users\\User\\Desktop\\Project Folder.lnk',
-      target_path: 'K:\\Practice Plan\\For_Your_File',
-      target_type: { type: 'Folder', path: 'K:\\Practice Plan\\For_Your_File' },
-      tags: 'project,development,practice',
-      notes: 'Current project directory',
-      frequency: 78,
-      last_opened: Date.now() - 300000,
-      created_at: Date.now() - 86400000 * 10,
-      updated_at: Date.now() - 86400000,
-    },
-  ]
-
-  // Filter by query
-  const filtered = mockEntries.filter(entry => {
-    const searchLower = query.toLowerCase()
-    return (
-      entry.lnk_path.toLowerCase().includes(searchLower) ||
-      entry.target_path.toLowerCase().includes(searchLower) ||
-      (entry.tags && entry.tags.toLowerCase().includes(searchLower)) ||
-      (entry.notes && entry.notes.toLowerCase().includes(searchLower))
-    )
-  })
-
-  // Paginate
-  const paginated = filtered.slice(offset, offset + limit)
-
-  return {
-    results: paginated.map(entry => ({
-      entry,
-      score: 1.0,
-      snippet: undefined,
-    })),
-    total_count: filtered.length,
-    offset,
-    limit,
   }
 }

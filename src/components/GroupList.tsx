@@ -14,6 +14,8 @@ interface GroupListProps {
   onCreateGroup: () => void
   onEditGroup: (group: GroupWithCount) => void
   onDeleteGroup: (groupId: number) => void
+  onDropToGroup: (entryId: number, groupId: number) => void
+  onDropToAllEntries: (entryId: number) => void
   isLoading?: boolean
 }
 
@@ -24,10 +26,13 @@ export function GroupList({
   onCreateGroup,
   onEditGroup,
   onDeleteGroup,
+  onDropToGroup,
+  onDropToAllEntries,
   isLoading = false,
 }: GroupListProps) {
   const { t } = useTranslation()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [dragOverAllEntries, setDragOverAllEntries] = useState(false)
 
   return (
     <div className="flex flex-col">
@@ -77,12 +82,27 @@ export function GroupList({
             className="overflow-hidden"
           >
             <div className="space-y-1 px-2 pb-2">
-              {/* All entries option */}
+              {/* All entries option — also a drop target to remove from group */}
               <button
                 onClick={() => onSelectGroup(0)}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'link'
+                  setDragOverAllEntries(true)
+                }}
+                onDragLeave={() => setDragOverAllEntries(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setDragOverAllEntries(false)
+                  const entryId = parseInt(e.dataTransfer.getData('text/plain'), 10)
+                  if (!isNaN(entryId)) {
+                    onDropToAllEntries(entryId)
+                  }
+                }}
                 className={`
                   w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm
                   transition-colors
+                  ${dragOverAllEntries ? 'ring-2 ring-primary-500 bg-primary-50 dark:bg-primary-900/20' : ''}
                   ${selectedGroupId === null || selectedGroupId === 0
                     ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
@@ -120,6 +140,7 @@ export function GroupList({
                   onSelect={onSelectGroup}
                   onEdit={onEditGroup}
                   onDelete={onDeleteGroup}
+                  onDropToGroup={onDropToGroup}
                 />
               ))}
             </div>

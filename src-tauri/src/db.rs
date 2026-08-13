@@ -89,12 +89,14 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
     )
     .map_err(|e| format!("Failed to create entry_groups table: {}", e))?;
 
-    // FTS5 virtual table for full-text search over entry content
+    // FTS5 virtual table for full-text search over entry content.
+    // Includes `description` (the user-entered entry name) so searching by name works.
     conn.execute(
         r#"
         CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
             lnk_path,
             target_path,
+            description,
             tags,
             notes,
             content='entries',
@@ -104,6 +106,11 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
         [],
     )
     .map_err(|e| format!("Failed to create entries_fts table: {}", e))?;
+
+    // --- Migration: rebuild FTS table if it lacks the `description` column ---
+    // Older versions of the app created entries_fts without `description`.
+    // We detect this by checking the FTS schema and rebuild if needed.
+    migrate_fts_if_needed(&conn)?;
 
     // --- Indexes ---
     let indexes = [
@@ -123,11 +130,12 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
 
     // --- FTS5 Triggers ---
     // Keep the FTS index in sync with the entries table.
+    // All triggers include `description` so name changes are reflected in search.
     conn.execute(
         r#"
         CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
-            INSERT INTO entries_fts(rowid, lnk_path, target_path, tags, notes)
-            VALUES (new.id, new.lnk_path, new.target_path, new.tags, new.notes)
+            INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
+            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes)
         END
         "#,
         [],
@@ -137,8 +145,8 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
     conn.execute(
         r#"
         CREATE TRIGGER IF NOT EXISTS entries_ad AFTER DELETE ON entries BEGIN
-            INSERT INTO entries_fts(entries_fts, rowid, lnk_path, target_path, tags, notes)
-            VALUES ('delete', old.id, old.lnk_path, old.target_path, old.tags, old.notes)
+            INSERT INTO entries_fts(entries_fts, rowid, lnk_path, target_path, description, tags, notes)
+            VALUES ('delete', old.id, old.lnk_path, old.target_path, old.description, old.tags, old.notes)
         END
         "#,
         [],
@@ -148,10 +156,10 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
     conn.execute(
         r#"
         CREATE TRIGGER IF NOT EXISTS entries_au AFTER UPDATE ON entries BEGIN
-            INSERT INTO entries_fts(entries_fts, rowid, lnk_path, target_path, tags, notes)
-            VALUES ('delete', old.id, old.lnk_path, old.target_path, old.tags, old.notes);
-            INSERT INTO entries_fts(rowid, lnk_path, target_path, tags, notes)
-            VALUES (new.id, new.lnk_path, new.target_path, new.tags, new.notes)
+            INSERT INTO entries_fts(entries_fts, rowid, lnk_path, target_path, description, tags, notes)
+            VALUES ('delete', old.id, old.lnk_path, old.target_path, old.description, old.tags, old.notes);
+            INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
+            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes)
         END
         "#,
         [],
@@ -159,5 +167,72 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
     .map_err(|e| format!("Failed to create entries_au trigger: {}", e))?;
 
     log::info!("Database initialized at {}", db_path.display());
+    Ok(())
+}
+
+/// Check whether the `entries_fts` table includes the `description` column.
+/// If it doesn't (older schema), drop and rebuild the FTS table + triggers
+/// so that searching by entry name (description) works correctly.
+fn migrate_fts_if_needed(conn: &Connection) -> Result<(), String> {
+    // Query the FTS5 table schema to check for the `description` column.
+    // FTS5 exposes columns via `pragma_table_info` on the virtual table.
+    let has_description: bool = {
+        let mut stmt = conn
+            .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='entries_fts'")
+            .map_err(|e| format!("Failed to query FTS schema: {}", e))?;
+        let sql_text: Option<String> = stmt
+            .query_row([], |row| row.get(0))
+            .ok();
+        sql_text
+            .map(|s| s.to_lowercase().contains("description"))
+            .unwrap_or(false)
+    };
+
+    if has_description {
+        // Schema already includes description — no migration needed
+        return Ok(());
+    }
+
+    log::info!("Migrating entries_fts: adding description column (rebuilding FTS table)...");
+
+    // Drop old triggers first (they reference the old FTS schema)
+    conn.execute("DROP TRIGGER IF EXISTS entries_ai", [])
+        .map_err(|e| format!("Failed to drop trigger entries_ai: {}", e))?;
+    conn.execute("DROP TRIGGER IF EXISTS entries_ad", [])
+        .map_err(|e| format!("Failed to drop trigger entries_ad: {}", e))?;
+    conn.execute("DROP TRIGGER IF EXISTS entries_au", [])
+        .map_err(|e| format!("Failed to drop trigger entries_au: {}", e))?;
+
+    // Drop and recreate the FTS table with the new schema
+    conn.execute("DROP TABLE IF EXISTS entries_fts", [])
+        .map_err(|e| format!("Failed to drop entries_fts: {}", e))?;
+
+    conn.execute(
+        r#"
+        CREATE VIRTUAL TABLE entries_fts USING fts5(
+            lnk_path,
+            target_path,
+            description,
+            tags,
+            notes,
+            content='entries',
+            content_rowid='id'
+        )
+        "#,
+        [],
+    )
+    .map_err(|e| format!("Failed to recreate entries_fts: {}", e))?;
+
+    // Rebuild the FTS index from existing entries
+    conn.execute(
+        r#"
+        INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
+        SELECT id, lnk_path, target_path, description, tags, notes FROM entries
+        "#,
+        [],
+    )
+    .map_err(|e| format!("Failed to rebuild FTS index: {}", e))?;
+
+    log::info!("FTS migration complete: entries_fts now includes description");
     Ok(())
 }

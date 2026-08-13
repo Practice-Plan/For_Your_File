@@ -5,6 +5,7 @@
 //! CLI argument handling for command-line operations
 //! Expiration reminder system for temporary files
 
+mod app_scanner;
 mod cli;
 mod commands;
 mod db;
@@ -13,6 +14,7 @@ mod hotkey;
 mod lnk;
 mod models;
 mod notifications;
+mod ppc_linker;
 mod protocol;
 
 use cli::CliArgs;
@@ -26,6 +28,69 @@ use tauri::{
     Emitter, Listener, Manager,
 };
 use tauri_plugin_deep_link::DeepLinkExt;
+
+/// Tray menu labels localized to the system language.
+struct TrayLabels {
+    show: String,
+    quit: String,
+}
+
+/// Detect the system language and return localized tray menu labels.
+///
+/// Detection order:
+/// 1. Windows preferred UI language (via `GetUserDefaultLocaleName` / `LCIDToLocaleName`)
+/// 2. `LANG` environment variable (Unix fallback)
+/// 3. English (default)
+///
+/// Supported languages: en, zh, fr, ru, ar. Falls back to English if unsupported.
+fn get_tray_labels() -> TrayLabels {
+    let lang = detect_system_language();
+    log::info!("Detected system language for tray: {}", lang);
+
+    match lang.as_str() {
+        "zh" => TrayLabels {
+            show: "显示/隐藏".to_string(),
+            quit: "退出".to_string(),
+        },
+        "fr" => TrayLabels {
+            show: "Afficher/Masquer".to_string(),
+            quit: "Quitter".to_string(),
+        },
+        "ru" => TrayLabels {
+            show: "Показать/Скрыть".to_string(),
+            quit: "Выйти".to_string(),
+        },
+        "ar" => TrayLabels {
+            show: "إظهار/إخفاء".to_string(),
+            quit: "خروج".to_string(),
+        },
+        _ => TrayLabels {
+            show: "Show/Hide".to_string(),
+            quit: "Quit".to_string(),
+        },
+    }
+}
+
+/// Detect the system language as a 2-letter code (e.g., "en", "zh").
+/// Returns "en" as a fallback if detection fails or the language is unsupported.
+///
+/// Uses the `sys-locale` crate which calls the appropriate OS API:
+/// - Windows: GetUserDefaultLocaleName
+/// - macOS: NSLocale.preferredLanguages
+/// - Linux: LANG environment variable / locale settings
+fn detect_system_language() -> String {
+    let locale = sys_locale::get_locale().unwrap_or_else(|| "en".to_string());
+    let lower = locale.to_lowercase();
+    let primary = lower.split('-').next().unwrap_or("en");
+    match primary {
+        "zh" => "zh".to_string(),
+        "fr" => "fr".to_string(),
+        "ru" => "ru".to_string(),
+        "ar" => "ar".to_string(),
+        "en" => "en".to_string(),
+        _ => "en".to_string(),
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -47,11 +112,21 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
-            // Intercept close button: hide to tray instead of exiting
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
-                api.prevent_close();
+            match event {
+                // Intercept close button: hide to tray instead of exiting
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
+                // Log focus changes for debugging minimize/restore issues
+                tauri::WindowEvent::Focused(focused) => {
+                    if !focused {
+                        log::debug!("Window lost focus");
+                    }
+                }
+                _ => {}
             }
         })
         .setup(move |app| {
@@ -69,22 +144,30 @@ pub fn run() {
                 log::error!("Failed to initialize database: {}", e);
             }
 
-            // Initialize system tray with context menu
-            let show_item = MenuItem::with_id(app, "show", "Show/Hide", true, None::<&str>)
+            // Initialize system tray with context menu.
+            // Menu item labels are localized at build time by detecting the system language.
+            // Tauri's MenuItem text is static once built, so we resolve the language here.
+            // The frontend (i18n) separately detects language via navigator/localStorage.
+            let tray_labels = get_tray_labels();
+            let show_item = MenuItem::with_id(app, "show", &tray_labels.show, true, None::<&str>)
                 .map_err(|e| {
                     log::error!("Failed to create tray menu item 'show': {}", e);
                     e
                 })?;
             let quit_item =
-                MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).map_err(|e| {
+                MenuItem::with_id(app, "quit", &tray_labels.quit, true, None::<&str>).map_err(|e| {
                     log::error!("Failed to create tray menu item 'quit': {}", e);
                     e
                 })?;
             let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
             let tray_app_handle = app.handle().clone();
+            let default_icon = app.default_window_icon().cloned().ok_or_else(|| {
+                log::error!("Failed to get default window icon for tray");
+                "Default window icon not found".to_string()
+            })?;
             let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().cloned().unwrap())
+                .icon(default_icon)
                 .tooltip("LNK File Management Center")
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
@@ -98,7 +181,11 @@ pub fn run() {
                         // Left-click toggles window visibility
                         let app_handle = tray_app.app_handle();
                         if let Some(window) = app_handle.get_webview_window("main") {
-                            if window.is_visible().unwrap_or(false) {
+                            if window.is_minimized().unwrap_or(false) {
+                                let _ = window.unminimize();
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            } else if window.is_visible().unwrap_or(false) {
                                 let _ = window.hide();
                             } else {
                                 let _ = window.show();
@@ -114,7 +201,11 @@ pub fn run() {
             app.on_menu_event(move |_app_handle, event| match event.id().as_ref() {
                 "show" => {
                     if let Some(window) = tray_menu_app_handle.get_webview_window("main") {
-                        if window.is_visible().unwrap_or(false) {
+                        if window.is_minimized().unwrap_or(false) {
+                            let _ = window.unminimize();
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        } else if window.is_visible().unwrap_or(false) {
                             let _ = window.hide();
                         } else {
                             let _ = window.show();
@@ -132,12 +223,16 @@ pub fn run() {
             // Initialize hotkey manager
             let mut hotkey_manager = HotkeyManager::new();
 
-            // Load configuration (or use default)
-            let config = hotkey_manager.load_config().unwrap_or_default();
+            // Set app handle first (needed by save_config later)
+            hotkey_manager.set_app_handle(app.handle().clone());
 
-            // Register default hotkey
+            // Load saved configuration (or use default if no config file exists)
+            let config = hotkey_manager.load_config(app.handle()).unwrap_or_default();
+
+            // Register the hotkey using the loaded config (register() also
+            // updates the internal config state with these modifiers/key)
             if let Err(e) = hotkey_manager.register(&config.modifiers, &config.key) {
-                log::warn!("Failed to register default hotkey: {}", e);
+                log::warn!("Failed to register hotkey: {}", e);
             }
 
             // Start listening for hotkey events
@@ -148,24 +243,44 @@ pub fn run() {
             // Store hotkey manager in app state
             app.manage(HotkeyState(Mutex::new(hotkey_manager)));
 
+            // Store PPC linker state
+            app.manage(ppc_linker::PpcState::new());
+
             // Handle CLI arguments
             handle_cli_args(app.handle(), &cli_args);
 
             // Listen for hotkey events from the backend
+            // NOTE: This is the ONLY place that toggles window visibility on hotkey-pressed.
+            // The frontend (useGlobalHotkey.ts) must NOT also toggle the window,
+            // otherwise the double-toggle cancels out and the window appears unchanged.
             let app_handle = app.handle().clone();
             app.listen("hotkey-pressed", move |_event| {
-                log::info!("Hotkey pressed event received in frontend");
+                log::info!("Hotkey pressed event received");
 
-                // Get the main window
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    // Toggle window visibility
-                    if window.is_visible().unwrap_or(false) {
-                        // Window is visible - hide it
+                    // Check minimized first: a minimized window returns is_visible() == true,
+                    // so we must handle it separately to restore instead of hiding.
+                    if window.is_minimized().unwrap_or(false) {
+                        // Window is minimized - restore and focus
+                        log::info!("Window is minimized, restoring");
+                        if let Err(e) = window.unminimize() {
+                            log::error!("Failed to unminimize window: {}", e);
+                        }
+                        if let Err(e) = window.show() {
+                            log::error!("Failed to show window: {}", e);
+                        }
+                        if let Err(e) = window.set_focus() {
+                            log::error!("Failed to focus window: {}", e);
+                        }
+                    } else if window.is_visible().unwrap_or(false) {
+                        // Window is visible (not minimized) - hide it
+                        log::info!("Window is visible, hiding");
                         if let Err(e) = window.hide() {
                             log::error!("Failed to hide window: {}", e);
                         }
                     } else {
                         // Window is hidden - show and focus it
+                        log::info!("Window is hidden, showing");
                         if let Err(e) = window.show() {
                             log::error!("Failed to show window: {}", e);
                         }
@@ -227,6 +342,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_app_version,
             commands::parse_lnk_file,
+            commands::list_installed_apps,
+            commands::get_app_icon,
             commands::register_global_hotkey,
             commands::unregister_global_hotkey,
             commands::update_global_hotkey,
@@ -274,6 +391,16 @@ pub fn run() {
             commands::get_all_entries,
             commands::search_entries,
             commands::open_lnk_file,
+            commands::open_entry,
+            commands::open_working_directory,
+            commands::open_url,
+            commands::batch_create_entries,
+            commands::rebuild_fts_index,
+            ppc_linker::ppc_connect_auto,
+            ppc_linker::ppc_status,
+            ppc_linker::ppc_send_command,
+            ppc_linker::ppc_disconnect,
+            ppc_linker::ppc_error_codes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

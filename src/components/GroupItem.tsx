@@ -1,7 +1,8 @@
 /**
  * Single group item with color indicator and actions
  */
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import type { GroupWithCount } from '../types'
@@ -12,6 +13,7 @@ interface GroupItemProps {
   onSelect: (groupId: number) => void
   onEdit: (group: GroupWithCount) => void
   onDelete: (groupId: number) => void
+  onDropToGroup: (entryId: number, groupId: number) => void
   isCollapsed?: boolean
 }
 
@@ -21,12 +23,47 @@ export function GroupItem({
   onSelect,
   onEdit,
   onDelete,
+  onDropToGroup,
   isCollapsed = false,
 }: GroupItemProps) {
   const { t } = useTranslation()
   const [showMenu, setShowMenu] = useState(false)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
 
   if (!group.id) return null
+
+  const groupId = group.id
+
+  const openMenu = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect()
+      // Position dropdown below the button, aligned to its right edge.
+      // Clamp left so the menu doesn't go off-screen.
+      const menuWidth = 120
+      const left = Math.max(8, rect.right - menuWidth)
+      const top = rect.bottom + 4
+      setMenuPos({ top, left })
+    }
+    setShowMenu(true)
+  }
+
+  // Close menu on Escape or scroll
+  useEffect(() => {
+    if (!showMenu) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowMenu(false)
+    }
+    const handleScroll = () => setShowMenu(false)
+    window.addEventListener('keydown', handleEsc)
+    window.addEventListener('scroll', handleScroll, true)
+    return () => {
+      window.removeEventListener('keydown', handleEsc)
+      window.removeEventListener('scroll', handleScroll, true)
+    }
+  }, [showMenu])
 
   return (
     <motion.div
@@ -35,12 +72,27 @@ export function GroupItem({
       className={`
         group relative flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer
         transition-colors duration-150
+        ${isDragOver ? 'ring-2 ring-primary-500 bg-primary-50 dark:bg-primary-900/20' : ''}
         ${isSelected
           ? 'bg-primary-100 dark:bg-primary-900/30 border border-primary-300 dark:border-primary-700'
           : 'hover:bg-gray-100 dark:hover:bg-gray-800'
         }
       `}
       onClick={() => onSelect(group.id!)}
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'link'
+        setIsDragOver(true)
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setIsDragOver(false)
+        const entryId = parseInt(e.dataTransfer.getData('text/plain'), 10)
+        if (!isNaN(entryId) && groupId) {
+          onDropToGroup(entryId, groupId)
+        }
+      }}
     >
       {/* Color indicator */}
       <div
@@ -63,10 +115,8 @@ export function GroupItem({
 
           {/* Actions menu button */}
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setShowMenu(!showMenu)
-            }}
+            ref={menuBtnRef}
+            onClick={openMenu}
             className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-opacity"
           >
             <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -74,8 +124,8 @@ export function GroupItem({
             </svg>
           </button>
 
-          {/* Dropdown menu */}
-          {showMenu && (
+          {/* Dropdown menu - rendered via portal to escape sidebar overflow clipping */}
+          {showMenu && menuPos && createPortal(
             <>
               <div
                 className="fixed inset-0 z-40"
@@ -84,7 +134,8 @@ export function GroupItem({
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
+                style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 50 }}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
               >
                 <button
                   onClick={(e) => {
@@ -107,7 +158,8 @@ export function GroupItem({
                   {t('group.delete')}
                 </button>
               </motion.div>
-            </>
+            </>,
+            document.body
           )}
         </>
       )}
