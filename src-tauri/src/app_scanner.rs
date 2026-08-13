@@ -328,8 +328,8 @@ pub fn extract_icon_as_base64(
 
     if bmp_size == 0 {
         unsafe {
-            let _ = DeleteObject(icon_info.hbmColor.into());
-            let _ = DeleteObject(icon_info.hbmMask.into());
+            let _ = DeleteObject(icon_info.hbmColor);
+            let _ = DeleteObject(icon_info.hbmMask);
             let _ = DestroyIcon(hicon);
         }
         return Err("Failed to get bitmap dimensions".to_string());
@@ -340,8 +340,8 @@ pub fn extract_icon_as_base64(
 
     if width == 0 || height == 0 {
         unsafe {
-            let _ = DeleteObject(icon_info.hbmColor.into());
-            let _ = DeleteObject(icon_info.hbmMask.into());
+            let _ = DeleteObject(icon_info.hbmColor);
+            let _ = DeleteObject(icon_info.hbmMask);
             let _ = DestroyIcon(hicon);
         }
         return Err("Invalid icon dimensions".to_string());
@@ -380,9 +380,9 @@ pub fn extract_icon_as_base64(
         );
 
         // Cleanup GDI resources
-        DeleteDC(hdc).ok();
-        let _ = DeleteObject(icon_info.hbmColor.into());
-        let _ = DeleteObject(icon_info.hbmMask.into());
+        let _ = DeleteDC(hdc);
+        let _ = DeleteObject(icon_info.hbmColor);
+        let _ = DeleteObject(icon_info.hbmMask);
         let _ = DestroyIcon(hicon);
     }
 
