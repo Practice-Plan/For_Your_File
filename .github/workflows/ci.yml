@@ -98,19 +98,33 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            src-tauri/target
+            target
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.target }}-cargo-
 
       - name: Build with Tauri
-        run: npx tauri build --target ${{ matrix.target }}
+        run: npx tauri build --target ${{ matrix.target }} --no-bundle
+
+      - name: Stage release artifacts
+        shell: pwsh
+        run: |
+          $stage = "release-artifacts/${{ matrix.arch }}"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+          $patterns = @('*.exe')
+          $files = foreach ($pattern in $patterns) {
+            Get-ChildItem -Path "target/${{ matrix.target }}/release" -Recurse -File -Filter $pattern -ErrorAction SilentlyContinue
+          }
+          if (-not $files) { throw "No executable or installer artifacts were produced" }
+          $files | Sort-Object FullName -Unique | Copy-Item -Destination $stage -Force
+
+          Copy-Item README.md, README-zh.md, LICENSE.md, install-context-menu.ps1, uninstall-context-menu.ps1 -Destination $stage -Force
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.arch }}-installer
+          name: ${{ matrix.arch }}-release
           path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.msi
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
-          if-no-files-found: warn
+            release-artifacts/${{ matrix.arch }}/*
+          if-no-files-found: error
