@@ -119,10 +119,16 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
             match event {
-                // Intercept close button: hide to tray instead of exiting
+                // Intercept close button: hide to tray instead of exiting.
+                // Only the main window hides to tray — secondary windows
+                // (e.g. database-preview) must close normally, otherwise
+                // they turn into hidden zombie webviews that keep eating
+                // memory and can never be dismissed.
                 tauri::WindowEvent::CloseRequested { api, .. } => {
-                    let _ = window.hide();
-                    api.prevent_close();
+                    if window.label() == "main" {
+                        let _ = window.hide();
+                        api.prevent_close();
+                    }
                 }
                 // Log focus changes for debugging minimize/restore issues
                 tauri::WindowEvent::Focused(false) => {

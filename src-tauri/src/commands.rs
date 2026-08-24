@@ -1212,8 +1212,15 @@ pub struct DatabasePreviewBatch {
 
 /// Open the database preview in a separate window. Reuse an existing window so
 /// repeated clicks never create an unbounded number of webviews.
+///
+/// MUST be async: in Tauri v2, synchronous commands run on the main thread,
+/// and `WebviewWindowBuilder::build()` dispatches window creation to the main
+/// event loop and blocks waiting for the result. Calling it from a sync
+/// command self-deadlocks the main thread (white window, unresponsive UI,
+/// all IPC from the main window hangs). Async commands run on the tokio
+/// runtime, so `build()` can safely wait for the event loop.
 #[tauri::command]
-pub fn open_database_preview(app_handle: AppHandle) -> Result<(), String> {
+pub async fn open_database_preview(app_handle: AppHandle) -> Result<(), String> {
     if let Some(window) = app_handle.get_webview_window("database-preview") {
         window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
@@ -1237,8 +1244,10 @@ pub fn open_database_preview(app_handle: AppHandle) -> Result<(), String> {
 
 /// Read a bounded database batch. The allowlist and hard limit prevent a
 /// resource-constrained client from forcing a full-table load.
+///
+/// Async so SQLite I/O and the progress emit never block the main thread.
 #[tauri::command]
-pub fn get_database_preview_batch(
+pub async fn get_database_preview_batch(
     app_handle: AppHandle,
     table: String,
     offset: i64,

@@ -583,8 +583,14 @@ fn wait_for_port(host: &str, port: u16, timeout_secs: u64) -> bool {
 /// Connect to PPC with auto-launch: retry ping three times → (launch if down) →
 /// version check → register → authenticate.
 /// If PPC cannot be reached after launching, a warning dialog is shown.
+///
+/// MUST be async: this command sleeps (3×500ms retries), spawns PowerShell,
+/// and waits up to 10s for the PPC port. Synchronous commands run on the
+/// main thread in Tauri v2, so a sync version here freezes the whole UI
+/// (window creation, close buttons, and every other IPC call) for the
+/// entire connection attempt.
 #[tauri::command]
-pub fn ppc_connect_auto(
+pub async fn ppc_connect_auto(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, PpcState>,
 ) -> Result<PpcSession, String> {
