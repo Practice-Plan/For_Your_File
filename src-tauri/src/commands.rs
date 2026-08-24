@@ -1298,11 +1298,14 @@ pub fn get_database_preview_batch(
 
     let loaded = (offset + rows.len() as i64).min(total_count);
     app_handle
-        .emit("database-preview-progress", serde_json::json!({
-            "table": table,
-            "loaded": loaded,
-            "total": total_count,
-        }))
+        .emit(
+            "database-preview-progress",
+            serde_json::json!({
+                "table": table,
+                "loaded": loaded,
+                "total": total_count,
+            }),
+        )
         .map_err(|e| format!("Failed to report database preview progress: {}", e))?;
 
     Ok(DatabasePreviewBatch {
