@@ -16,6 +16,7 @@ use crate::protocol::{parse_deep_link, ProtocolAction, ProtocolRequest};
 use rusqlite::OptionalExtension;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::webview::{WebviewUrl, WebviewWindowBuilder};
 
 use crate::models::Entry;
 
@@ -1102,11 +1103,6 @@ pub fn create_entry(app_handle: AppHandle, entry: Entry) -> Result<Entry, String
 
     let id = conn.last_insert_rowid();
 
-    // Rebuild FTS index to ensure the new entry is searchable
-    if let Err(e) = rebuild_fts_index(app_handle) {
-        log::warn!("Failed to rebuild FTS index after create_entry: {}", e);
-    }
-
     let mut created_entry = entry;
     created_entry.id = Some(id);
     created_entry.created_at = now;
@@ -1156,11 +1152,6 @@ pub fn update_entry(app_handle: AppHandle, id: i64, entry: Entry) -> Result<Entr
     )
     .map_err(|e| format!("Failed to update entry: {}", e))?;
 
-    // Rebuild FTS index to ensure the updated entry is searchable
-    if let Err(e) = rebuild_fts_index(app_handle) {
-        log::warn!("Failed to rebuild FTS index after update_entry: {}", e);
-    }
-
     let mut updated_entry = entry;
     updated_entry.id = Some(id);
     updated_entry.updated_at = now;
@@ -1176,11 +1167,6 @@ pub fn delete_entry(app_handle: AppHandle, id: i64) -> Result<(), String> {
 
     conn.execute("DELETE FROM entries WHERE id = ?1", rusqlite::params![id])
         .map_err(|e| format!("Failed to delete entry: {}", e))?;
-
-    // Rebuild FTS index to ensure the deleted entry is no longer searchable
-    if let Err(e) = rebuild_fts_index(app_handle) {
-        log::warn!("Failed to rebuild FTS index after delete_entry: {}", e);
-    }
 
     Ok(())
 }
@@ -1212,6 +1198,123 @@ pub fn get_all_entries(app_handle: AppHandle) -> Result<Vec<Entry>, String> {
         .map_err(|e| format!("Failed to collect entries: {}", e))?;
 
     Ok(entries)
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct DatabasePreviewBatch {
+    pub table: String,
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<serde_json::Value>>,
+    pub total_count: i64,
+    pub offset: i64,
+    pub limit: i64,
+    pub has_more: bool,
+}
+
+/// Open the database preview in a separate window. Reuse an existing window so
+/// repeated clicks never create an unbounded number of webviews.
+#[tauri::command]
+pub fn open_database_preview(app_handle: AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("database-preview") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(
+        &app_handle,
+        "database-preview",
+        WebviewUrl::App("index.html?window=database-preview".into()),
+    )
+    .title("Database Preview")
+    .inner_size(1100.0, 720.0)
+    .min_inner_size(720.0, 420.0)
+    .resizable(true)
+    .center()
+    .build()
+    .map(|_| ())
+    .map_err(|e| format!("Failed to open database preview: {}", e))
+}
+
+/// Read a bounded database batch. The allowlist and hard limit prevent a
+/// resource-constrained client from forcing a full-table load.
+#[tauri::command]
+pub fn get_database_preview_batch(
+    app_handle: AppHandle,
+    table: String,
+    offset: i64,
+    limit: i64,
+) -> Result<DatabasePreviewBatch, String> {
+    let (columns, count_sql, query_sql) = match table.as_str() {
+        "entries" => (
+            vec!["id", "lnk_path", "target_path", "description", "tags", "frequency", "created_at", "updated_at"],
+            "SELECT COUNT(*) FROM entries",
+            "SELECT id, lnk_path, target_path, description, tags, frequency, created_at, updated_at FROM entries ORDER BY id LIMIT ?1 OFFSET ?2",
+        ),
+        "groups" => (
+            vec!["id", "name", "color", "created_at", "updated_at"],
+            "SELECT COUNT(*) FROM groups",
+            "SELECT id, name, color, created_at, updated_at FROM groups ORDER BY id LIMIT ?1 OFFSET ?2",
+        ),
+        "entry_groups" => (
+            vec!["entry_id", "group_id"],
+            "SELECT COUNT(*) FROM entry_groups",
+            "SELECT entry_id, group_id FROM entry_groups ORDER BY entry_id, group_id LIMIT ?1 OFFSET ?2",
+        ),
+        _ => return Err("Unsupported database table".to_string()),
+    };
+
+    let db_path = db::get_database_path(&app_handle)?;
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| format!("Failed to open database: {}", e))?;
+    conn.busy_timeout(std::time::Duration::from_millis(1500))
+        .map_err(|e| format!("Failed to configure database timeout: {}", e))?;
+
+    let total_count: i64 = conn
+        .query_row(count_sql, [], |row| row.get(0))
+        .map_err(|e| format!("Failed to count {}: {}", table, e))?;
+    let offset = offset.max(0).min(total_count);
+    let limit = limit.clamp(1, 200);
+    let mut stmt = conn
+        .prepare(query_sql)
+        .map_err(|e| format!("Failed to prepare {} preview: {}", table, e))?;
+    let rows = stmt
+        .query_map(rusqlite::params![limit, offset], |row| {
+            let mut values = Vec::with_capacity(columns.len());
+            for index in 0..columns.len() {
+                let value: rusqlite::types::Value = row.get(index)?;
+                values.push(match value {
+                    rusqlite::types::Value::Null => serde_json::Value::Null,
+                    rusqlite::types::Value::Integer(value) => serde_json::json!(value),
+                    rusqlite::types::Value::Real(value) => serde_json::json!(value),
+                    rusqlite::types::Value::Text(value) => serde_json::json!(value),
+                    rusqlite::types::Value::Blob(_) => serde_json::json!("[binary data]"),
+                });
+            }
+            Ok(values)
+        })
+        .map_err(|e| format!("Failed to query {} preview: {}", table, e))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to collect {} preview: {}", table, e))?;
+
+    let loaded = (offset + rows.len() as i64).min(total_count);
+    app_handle
+        .emit("database-preview-progress", serde_json::json!({
+            "table": table,
+            "loaded": loaded,
+            "total": total_count,
+        }))
+        .map_err(|e| format!("Failed to report database preview progress: {}", e))?;
+
+    Ok(DatabasePreviewBatch {
+        table,
+        columns: columns.into_iter().map(String::from).collect(),
+        rows,
+        total_count,
+        offset,
+        limit,
+        has_more: loaded < total_count,
+    })
 }
 
 /// Paginated search response

@@ -72,6 +72,8 @@ function App() {
   const [contextMenuEntryGroupIds, setContextMenuEntryGroupIds] = useState<number[]>([])
   const [deletingEntry, setDeletingEntry] = useState<Entry | null>(null)
   const [showBatchImport, setShowBatchImport] = useState(false)
+  const [pendingOpenEntry, setPendingOpenEntry] = useState<Entry | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -134,15 +136,99 @@ function App() {
     if (result.entry.id !== null) {
       setSelectedEntryId(result.entry.id)
     }
+    // Clear multi-select when single-selecting
+    setSelectedIds(new Set())
   }, [])
 
+  // Handle multi-select toggle (Ctrl+click)
+  const handleToggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  // Handle select all / deselect all
+  const handleSelectAll = useCallback(() => {
+    if (selectedIds.size === displayResults.length) {
+      setSelectedIds(new Set())
+    } else {
+      const ids = new Set(
+        displayResults
+          .map(r => r.entry.id)
+          .filter((id): id is number => id !== null)
+      )
+      setSelectedIds(ids)
+    }
+  }, [selectedIds.size, displayResults])
+
+  // Handle batch open (open all selected entries)
+  const handleBatchOpen = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    const entries = displayResults.filter(r => r.entry.id !== null && selectedIds.has(r.entry.id))
+    for (const result of entries) {
+      const entry = result.entry
+      if (!entry.target_path && !entry.lnk_path) continue
+      try {
+        await invoke('open_entry', {
+          params: {
+            entry_id: entry.id,
+            lnk_path: entry.lnk_path || '',
+            target_path: entry.target_path || '',
+            target_type: entry.target_type?.type || 'File',
+            parameters: entry.parameters || null,
+            working_dir: entry.working_dir || null,
+          },
+        })
+      } catch (err) {
+        console.error(`Failed to open entry ${entry.id}:`, err)
+      }
+    }
+    setSelectedIds(new Set())
+    refreshSearch()
+  }, [selectedIds, displayResults, refreshSearch])
+
+  // Handle batch delete (delete all selected entries)
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    for (const id of selectedIds) {
+      try {
+        await invoke('delete_entry', { id })
+      } catch (err) {
+        console.error(`Failed to delete entry ${id}:`, err)
+      }
+    }
+    if (selectedEntryId !== null && selectedIds.has(selectedEntryId)) {
+      setSelectedEntryId(null)
+    }
+    setSelectedIds(new Set())
+    refreshSearch()
+    refreshGroups()
+  }, [selectedIds, selectedEntryId, refreshSearch, refreshGroups])
+
   // Handle item open (double-click or Enter).
-  // Dispatches to the backend `open_entry` command which honors the entry's
-  // mode (application vs file/folder), parameters, working directory, and
-  // open method. Also increments frequency and updates last_opened.
+  // Shows a confirmation dialog first to prevent accidental launches.
+  // On confirm, dispatches to the backend `open_entry` command which honors
+  // the entry's mode (application vs file/folder), parameters, working
+  // directory, and open method. Also increments frequency and updates last_opened.
   const handleItemOpen = useCallback(async (result: SearchResultType) => {
     const entry = result.entry
     if (!entry.target_path && !entry.lnk_path) return
+
+    // Show confirmation dialog before actually opening
+    setPendingOpenEntry(entry)
+  }, [])
+
+  // Actually execute the open after user confirms the dialog
+  const confirmOpenEntry = useCallback(async () => {
+    if (!pendingOpenEntry) return
+    const entry = pendingOpenEntry
+    setPendingOpenEntry(null)
 
     try {
       await invoke('open_entry', {
@@ -160,7 +246,12 @@ function App() {
     } catch (err) {
       console.error('Failed to open entry:', err)
     }
-  }, [refreshSearch])
+  }, [pendingOpenEntry, refreshSearch])
+
+  // Cancel the open confirmation dialog
+  const cancelOpenEntry = useCallback(() => {
+    setPendingOpenEntry(null)
+  }, [])
 
   // Handle entry update from detail panel
   const handleEntryUpdate = useCallback(() => {
@@ -408,14 +499,24 @@ function App() {
   const applyTheme = useCallback((theme: 'light' | 'dark') => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark')
+      document.body.classList.remove('bg-gray-50')
+      document.body.classList.add('dark:bg-dark-bg')
     } else {
       document.documentElement.classList.remove('dark')
+      document.body.classList.remove('dark:bg-dark-bg')
+      document.body.classList.add('bg-gray-50')
     }
+    // Remove preload class once React is managing the theme
+    document.body.classList.remove('dark-bg-preload')
   }, [])
 
-  // Apply initial theme
+  // Apply initial theme and clean up preload artifacts
   useEffect(() => {
     applyTheme(windowState.theme)
+    // After React takes over, remove the preload no-transition style
+    // so CSS transitions work normally during theme switches
+    const preloadStyle = document.getElementById('preload-no-transition')
+    if (preloadStyle) preloadStyle.remove()
   }, [])
 
   const toggleTheme = () => {
@@ -456,6 +557,16 @@ function App() {
           >
             <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            </svg>
+          </button>
+          <button
+            onClick={() => invoke('open_database_preview').catch((err) => console.error('Failed to open database preview:', err))}
+            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            title={t('databasePreview.title')}
+            aria-label={t('databasePreview.title')}
+          >
+            <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
           <button
@@ -589,6 +700,9 @@ function App() {
                 onItemSelect={handleItemSelect}
                 onItemOpen={handleItemOpen}
                 onItemContextMenu={handleItemContextMenu}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                onSelectAll={handleSelectAll}
               />
             </div>
           </div>
@@ -739,6 +853,9 @@ function App() {
         selectedGroupId={selectedGroupId}
         groups={groups}
         entryGroupIds={contextMenuEntryGroupIds}
+        multiSelectCount={selectedIds.size}
+        onBatchOpen={handleBatchOpen}
+        onBatchDelete={handleBatchDelete}
       />
 
       {/* Entry delete confirmation (from context menu) */}
@@ -750,6 +867,56 @@ function App() {
         message={t('entry.deleteConfirm')}
         itemName={deletingEntry?.target_path || deletingEntry?.lnk_path}
       />
+
+      {/* Entry open confirmation (from double-click or context menu) */}
+      <AnimatePresence>
+        {pendingOpenEntry && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={cancelOpenEntry}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none p-4"
+            >
+              <div className="pointer-events-auto w-full max-w-md bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg shadow-xl overflow-hidden">
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    {t('entry.openConfirmTitle')}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    {t('entry.openConfirmMessage')}
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4 break-all">
+                    {pendingOpenEntry.target_path || pendingOpenEntry.lnk_path}
+                  </p>
+                  <div className="mt-6 flex justify-end gap-2">
+                    <button
+                      onClick={cancelOpenEntry}
+                      className="px-4 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      onClick={confirmOpenEntry}
+                      className="px-4 py-2 text-sm bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+                    >
+                      {t('contextMenu.open')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Batch Import Modal */}
       <BatchImportModal

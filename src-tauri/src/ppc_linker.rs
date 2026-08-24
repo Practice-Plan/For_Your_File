@@ -35,7 +35,7 @@ const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Minimum supported PPC version.
 const PPC_MIN_VERSION: &str = "0.0.7";
 /// Maximum supported PPC version.
-const PPC_MAX_VERSION: &str = "0.0.7";
+const PPC_MAX_VERSION: &str = "0.0.8";
 
 /// TCP read/write timeout in seconds.
 const TIMEOUT_SECS: u64 = 5;
@@ -351,6 +351,14 @@ pub fn ping_ppc() -> Result<bool, String> {
 /// register→auth→PPCPATH round-trip on every data-dir lookup.
 static PPC_BASE_PATH_CACHE: Mutex<Option<std::path::PathBuf>> = Mutex::new(None);
 
+/// Cooldown deadline after a failed PPC connection attempt.
+/// When the current time is before this instant, skip the connection attempt
+/// to avoid repeatedly blocking on an unavailable PPC server during startup.
+static PPC_FAIL_COOLDOWN: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+
+/// Duration to wait before retrying a failed PPC connection (30 seconds).
+const PPC_FAIL_COOLDOWN_SECS: u64 = 30;
+
 /// Query the PPC installation directory via the PPCPATH command.
 ///
 /// PPCPATH is not a public command, so this performs REGISTER_APP → AUTH →
@@ -362,14 +370,37 @@ fn query_ppc_base_path() -> Result<std::path::PathBuf, String> {
         return Ok(cached.clone());
     }
 
+    // Check cooldown: skip connection attempt if we recently failed
+    {
+        let cooldown = PPC_FAIL_COOLDOWN.lock().unwrap();
+        if let Some(deadline) = cooldown.as_ref() {
+            if std::time::Instant::now() < *deadline {
+                log::debug!("PPC connection in cooldown, skipping query");
+                return Err("PPC not reachable (cooldown active)".to_string());
+            }
+        }
+    }
+
     let addr = format!("{}:{}", PPC_HOST, PPC_PORT);
-    let mut stream = TcpStream::connect_timeout(
+    // Use a short connection timeout (500ms) to avoid blocking app startup
+    // when PPC is not yet running. Once connected, read/write timeouts
+    // remain at TIMEOUT_SECS for reliable command exchange.
+    let connect_result = TcpStream::connect_timeout(
         &addr
             .parse()
             .map_err(|e| format!("Invalid address: {}", e))?,
-        Duration::from_secs(TIMEOUT_SECS),
-    )
-    .map_err(|e| format!("PPC not reachable: {}", e))?;
+        Duration::from_millis(500),
+    );
+
+    let mut stream = match connect_result {
+        Ok(stream) => stream,
+        Err(e) => {
+            // Record cooldown on failure so subsequent calls don't block
+            *PPC_FAIL_COOLDOWN.lock().unwrap() =
+                Some(std::time::Instant::now() + Duration::from_secs(PPC_FAIL_COOLDOWN_SECS));
+            return Err(format!("PPC not reachable: {}", e));
+        }
+    };
 
     stream
         .set_read_timeout(Some(Duration::from_secs(TIMEOUT_SECS)))
@@ -439,8 +470,9 @@ fn query_ppc_base_path() -> Result<std::path::PathBuf, String> {
     let path_buf = std::path::PathBuf::from(path);
     log::info!("PPC base path resolved: {}", path_buf.display());
 
-    // Cache for subsequent lookups
+    // Cache for subsequent lookups and clear any failure cooldown
     *PPC_BASE_PATH_CACHE.lock().unwrap() = Some(path_buf.clone());
+    *PPC_FAIL_COOLDOWN.lock().unwrap() = None;
 
     Ok(path_buf)
 }
@@ -661,6 +693,9 @@ pub fn ppc_connect_auto(
     session.ppc_version = Some(ppc_version.clone());
     session.status_message = format!("Connected to PPC v{}", ppc_version);
     session.last_error_code = None;
+
+    // Clear the failure cooldown now that PPC is confirmed reachable
+    *PPC_FAIL_COOLDOWN.lock().unwrap() = None;
 
     Ok(session.clone())
 }

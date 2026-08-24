@@ -7,7 +7,7 @@
 中文 | [English](README.md) | [Français](README-fr.md) | [Русский](README-ru.md) | [العربية](README-ar.md)
 
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
-![Version](https://img.shields.io/badge/Version-0.0.2-green.svg)
+![Version](https://img.shields.io/badge/Version-0.0.3-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6.svg)
 ![Rust](https://img.shields.io/badge/Rust-1.77.2+-orange.svg)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933.svg)
@@ -23,6 +23,7 @@ LNK File Management Center 帮助你集中管理 Windows 快捷方式（.lnk）�
 - **⏰ 过期提醒** — 为临时文件设置过期时间，到期自动提醒、批量清理
 - **📚 智能分组** — 8 色分组、拖拽分配、批量操作、组导入/导出（JSON/CSV/HTML）
 - **📦 批量导入** — 拖放或浏览批量导入，统一配置标签/参数/打开方式，实时进度条
+- **🗃️ 数据库预览** — 在独立窗口查看完整本地数据库，支持真实进度和分页加载
 - **🌐 国际化** — 支持中文、English、Français、Русский、العربية 五种语言
 - **🎨 主题切换** — 深色/浅色主题，记忆用户偏好
 - **🖱️ 右键菜单** — Windows Explorer 右键菜单集成，一键添加
@@ -109,7 +110,7 @@ For_Your_File/
 │   └── user/                     # 用户指南
 ├── .github/workflows/ci.yml      # CI（测试 + 32/64 位打包）
 ├── package.json
-└── LICENSE                       # GPL-3.0
+└── LICENSE.md                    # GPL-3.0
 ```
 
 ## 🧪 测试
@@ -149,6 +150,6 @@ cargo fmt -- --check
 
 ## 📜 许可证
 
-本项目基于 [GNU General Public License v3.0](LICENSE) 开源。
+本项目基于 [GNU General Public License v3.0](LICENSE.md) 开源。
 
 Copyright © 2026 LNK File Management Center Contributors

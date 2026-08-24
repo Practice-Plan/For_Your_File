@@ -15,6 +15,9 @@ interface SearchResultsProps {
   onItemSelect: (result: SearchResult) => void
   onItemOpen: (result: SearchResult) => void
   onItemContextMenu?: (result: SearchResult, x: number, y: number) => void
+  selectedIds?: Set<number>
+  onToggleSelect?: (id: number) => void
+  onSelectAll?: () => void
 }
 
 /**
@@ -31,6 +34,9 @@ export function SearchResults({
   onItemSelect,
   onItemOpen,
   onItemContextMenu,
+  selectedIds = new Set(),
+  onToggleSelect,
+  onSelectAll,
 }: SearchResultsProps) {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -161,50 +167,92 @@ export function SearchResults({
       role="listbox"
       aria-label={t('search.resultsAria')}
     >
-      <AnimatePresence>
-        {results.map((result, index) => (
-          <div
-            key={result.entry.id ?? index}
-            data-index={index}
-            draggable={result.entry.id !== null}
-            onDragStart={(e) => {
-              if (result.entry.id !== null) {
-                e.dataTransfer.setData('text/plain', String(result.entry.id))
-                e.dataTransfer.effectAllowed = 'link'
-              }
-            }}
-            onDragEnd={(e) => {
-              e.currentTarget.classList.remove('opacity-50')
-            }}
-            onDrag={(e) => {
-              e.currentTarget.classList.add('opacity-50')
-            }}
-            onContextMenu={(e) => {
-              if (onItemContextMenu) {
-                e.preventDefault()
-                onSelectedIndexChange(index)
-                onItemContextMenu(result, e.clientX, e.clientY)
-              }
-            }}
+      {/* Select all checkbox */}
+      {results.length > 0 && onSelectAll && (
+        <div className="sticky top-0 z-10 bg-white dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border px-4 py-2 flex items-center gap-2">
+          <button
+            onClick={onSelectAll}
+            className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
           >
-            <SearchResultItem
-              id={String(result.entry.id)}
-              lnkPath={result.entry.lnk_path}
-              targetPath={result.entry.target_path}
-              tags={result.entry.tags}
-              notes={result.entry.notes}
-              frequency={result.entry.frequency}
-              lastOpened={result.entry.last_opened ? new Date(result.entry.last_opened).toISOString() : null}
-              query={query}
-              isSelected={index === selectedIndex}
-              onClick={() => {
-                onSelectedIndexChange(index)
-                onItemSelect(result)
+            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+              selectedIds.size === results.length && results.length > 0
+                ? 'bg-primary-500 border-primary-500'
+                : 'border-gray-300 dark:border-gray-600'
+            }`}>
+              {selectedIds.size === results.length && results.length > 0 && (
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <span>{selectedIds.size > 0 ? `${selectedIds.size} / ${results.length}` : t('search.selectAll')}</span>
+          </button>
+          {selectedIds.size > 0 && (
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              {t('search.multiSelectHint')}
+            </span>
+          )}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {results.map((result, index) => {
+          const entryId = result.entry.id
+          const isMultiSelected = entryId !== null && selectedIds.has(entryId)
+
+          return (
+            <div
+              key={entryId ?? index}
+              data-index={index}
+              draggable={entryId !== null && selectedIds.size === 0}
+              onDragStart={(e) => {
+                if (entryId !== null && selectedIds.size === 0) {
+                  e.dataTransfer.setData('text/plain', String(entryId))
+                  e.dataTransfer.effectAllowed = 'link'
+                }
               }}
-              onDoubleClick={() => onItemOpen(result)}
-            />
-          </div>
-        ))}
+              onDragEnd={(e) => {
+                e.currentTarget.classList.remove('opacity-50')
+              }}
+              onDrag={(e) => {
+                e.currentTarget.classList.add('opacity-50')
+              }}
+              onContextMenu={(e) => {
+                if (onItemContextMenu) {
+                  e.preventDefault()
+                  onSelectedIndexChange(index)
+                  onItemContextMenu(result, e.clientX, e.clientY)
+                }
+              }}
+            >
+              <SearchResultItem
+                id={String(entryId)}
+                lnkPath={result.entry.lnk_path}
+                targetPath={result.entry.target_path}
+                tags={result.entry.tags}
+                notes={result.entry.notes}
+                frequency={result.entry.frequency}
+                lastOpened={result.entry.last_opened ? new Date(result.entry.last_opened).toISOString() : null}
+                query={query}
+                isSelected={index === selectedIndex}
+                isMultiSelected={isMultiSelected}
+                onClick={(e: React.MouseEvent) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    // Ctrl+click: toggle multi-select
+                    if (entryId !== null && onToggleSelect) {
+                      onToggleSelect(entryId)
+                    }
+                  } else {
+                    // Normal click: single select
+                    onSelectedIndexChange(index)
+                    onItemSelect(result)
+                  }
+                }}
+                onDoubleClick={() => onItemOpen(result)}
+              />
+            </div>
+          )
+        })}
       </AnimatePresence>
 
       {/* Load more indicator */}

@@ -15,7 +15,9 @@
     "emptyTitle": "اكتب للبحث",
     "emptySubtitle": "ابدأ الكتابة للبحث في ملفات LNK الخاصة بك",
     "loadingMore": "جاري تحميل المزيد...",
-    "totalResults": "{{count}} نتيجة"
+    "totalResults": "{{count}} نتيجة",
+    "selectAll": "تحديد الكل",
+    "multiSelectHint": "Ctrl+نقر للتحديد المتعدد"
   },
   "entry": {
     "opens": "فتح",
@@ -41,6 +43,8 @@
     "deleteEntry": "حذف الإدخال",
     "saveChanges": "حفظ التغييرات",
     "deleteConfirm": "هل أنت متأكد من حذف هذا الإدخال؟ لا يمكن التراجع عن هذا الإجراء.",
+    "openConfirmTitle": "فتح الإدخال",
+    "openConfirmMessage": "هل أنت متأكد من أنك تريد فتح العنصر التالي؟",
     "never": "أبداً",
     "justNow": "الآن",
     "minutesAgo": "{{count}} دقائق مضت",
@@ -134,8 +138,10 @@
   "contextMenu": {
     "addToApp": "إضافة إلى مركز إدارة الملفات",
     "open": "فتح",
+    "openAll": "فتح الكل ({{count}})",
     "edit": "تحرير",
     "delete": "حذف",
+    "deleteAll": "حذف الكل ({{count}})",
     "addToGroup": "إضافة إلى المجموعة",
     "removeFromGroup": "إزالة من هذه المجموعة",
     "removeFromGroupDisabled": "العنصر ليس في أي مجموعة",

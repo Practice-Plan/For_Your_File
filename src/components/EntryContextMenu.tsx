@@ -37,6 +37,12 @@ interface EntryContextMenuProps {
   groups: GroupWithCount[]
   /** IDs of groups the focused entry belongs to (for checkmarks). */
   entryGroupIds?: number[]
+  /** Number of items selected for multi-select mode. */
+  multiSelectCount?: number
+  /** Callback for batch open (multi-select). */
+  onBatchOpen?: () => void
+  /** Callback for batch delete (multi-select). */
+  onBatchDelete?: () => void
 }
 
 export function EntryContextMenu({
@@ -51,6 +57,9 @@ export function EntryContextMenu({
   selectedGroupId,
   groups,
   entryGroupIds = [],
+  multiSelectCount = 0,
+  onBatchOpen,
+  onBatchDelete,
 }: EntryContextMenuProps) {
   const { t } = useTranslation()
   const [submenuPos, setSubmenuPos] = useState<{ top: number; left: number } | null>(null)
@@ -101,7 +110,7 @@ export function EntryContextMenu({
 
   // Clamp menu position so it stays on-screen.
   const menuWidth = 220
-  const menuHeight = 260
+  const menuHeight = multiSelectCount > 1 ? 100 : 260
   const left = Math.min(x, window.innerWidth - menuWidth - 8)
   const top = Math.min(y, window.innerHeight - menuHeight - 8)
 
@@ -129,6 +138,9 @@ export function EntryContextMenu({
     onClose()
   }
 
+  // Multi-select mode: only show Open and Delete
+  const isMultiSelectMode = multiSelectCount > 1
+
   return createPortal(
     <>
       {/* Click-catcher to close menu on outside click */}
@@ -146,83 +158,87 @@ export function EntryContextMenu({
         {/* Open */}
         <MenuItem
           icon={<OpenIcon />}
-          label={t('contextMenu.open')}
-          onClick={() => run(() => onOpen(entry))}
+          label={isMultiSelectMode ? t('contextMenu.openAll', { count: multiSelectCount }) : t('contextMenu.open')}
+          onClick={() => run(() => isMultiSelectMode && onBatchOpen ? onBatchOpen() : onOpen(entry))}
         />
 
-        {/* Edit */}
-        <MenuItem
-          icon={<EditIcon />}
-          label={t('contextMenu.edit')}
-          onClick={() => run(() => onEdit(entry))}
-        />
-
-        <Divider />
-
-        {/* Add to group (submenu) */}
-        {groups.length > 0 && (
-          <div
-            onMouseEnter={handleSubmenuEnter}
-            onMouseLeave={handleSubmenuLeave}
-          >
+        {!isMultiSelectMode && (
+          <>
+            {/* Edit */}
             <MenuItem
-              icon={<AddToGroupIcon />}
-              label={t('contextMenu.addToGroup')}
-              hasChevron
-              onClick={() => {
-                // Toggle submenu on click as well (for touch devices)
-                if (submenuOpen) {
-                  closeSubmenu()
-                } else {
-                  const rect = menuRef.current?.getBoundingClientRect()
-                  if (rect) {
-                    const subWidth = 180
-                    let subLeft = rect.right
-                    if (subLeft + subWidth > window.innerWidth - 8) {
-                      subLeft = rect.left - subWidth
+              icon={<EditIcon />}
+              label={t('contextMenu.edit')}
+              onClick={() => run(() => onEdit(entry))}
+            />
+
+            <Divider />
+
+            {/* Add to group (submenu) */}
+            {groups.length > 0 && (
+              <div
+                onMouseEnter={handleSubmenuEnter}
+                onMouseLeave={handleSubmenuLeave}
+              >
+                <MenuItem
+                  icon={<AddToGroupIcon />}
+                  label={t('contextMenu.addToGroup')}
+                  hasChevron
+                  onClick={() => {
+                    // Toggle submenu on click as well (for touch devices)
+                    if (submenuOpen) {
+                      closeSubmenu()
+                    } else {
+                      const rect = menuRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const subWidth = 180
+                        let subLeft = rect.right
+                        if (subLeft + subWidth > window.innerWidth - 8) {
+                          subLeft = rect.left - subWidth
+                        }
+                        setSubmenuPos({ top: rect.top, left: subLeft })
+                        setSubmenuOpen(true)
+                      }
                     }
-                    setSubmenuPos({ top: rect.top, left: subLeft })
-                    setSubmenuOpen(true)
-                  }
-                }
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Remove from this group */}
+            <MenuItem
+              icon={<RemoveFromGroupIcon />}
+              label={t('contextMenu.removeFromGroup')}
+              disabled={!canRemoveFromGroup}
+              title={
+                viewingAllItems
+                  ? t('contextMenu.removeFromGroupDisabledAllItems')
+                  : t('contextMenu.removeFromGroupDisabled')
+              }
+              onClick={() => {
+                if (!canRemoveFromGroup || !selectedGroupId) return
+                run(() => onRemoveFromGroup(entry, selectedGroupId))
               }}
             />
-          </div>
+
+            <Divider />
+
+            {/* Open working directory */}
+            <MenuItem
+              icon={<FolderIcon />}
+              label={t('contextMenu.openWorkingDir')}
+              onClick={() => run(() => onOpenWorkingDir(entry))}
+            />
+
+            <Divider />
+          </>
         )}
-
-        {/* Remove from this group */}
-        <MenuItem
-          icon={<RemoveFromGroupIcon />}
-          label={t('contextMenu.removeFromGroup')}
-          disabled={!canRemoveFromGroup}
-          title={
-            viewingAllItems
-              ? t('contextMenu.removeFromGroupDisabledAllItems')
-              : t('contextMenu.removeFromGroupDisabled')
-          }
-          onClick={() => {
-            if (!canRemoveFromGroup || !selectedGroupId) return
-            run(() => onRemoveFromGroup(entry, selectedGroupId))
-          }}
-        />
-
-        <Divider />
-
-        {/* Open working directory */}
-        <MenuItem
-          icon={<FolderIcon />}
-          label={t('contextMenu.openWorkingDir')}
-          onClick={() => run(() => onOpenWorkingDir(entry))}
-        />
-
-        <Divider />
 
         {/* Delete */}
         <MenuItem
           icon={<DeleteIcon />}
-          label={t('contextMenu.delete')}
+          label={isMultiSelectMode ? t('contextMenu.deleteAll', { count: multiSelectCount }) : t('contextMenu.delete')}
           danger
-          onClick={() => run(() => onDelete(entry))}
+          onClick={() => run(() => isMultiSelectMode && onBatchDelete ? onBatchDelete() : onDelete(entry))}
         />
       </motion.div>
 

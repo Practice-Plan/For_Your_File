@@ -7,7 +7,7 @@
 [中文](README-zh.md) | [English](README.md) | [Français](README-fr.md) | Русский | [العربية](README-ar.md)
 
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
-![Version](https://img.shields.io/badge/Version-0.0.2-green.svg)
+![Version](https://img.shields.io/badge/Version-0.0.3-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6.svg)
 ![Rust](https://img.shields.io/badge/Rust-1.77.2+-orange.svg)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933.svg)
@@ -109,7 +109,7 @@ For_Your_File/
 │   └── user/                     # Руководство пользователя
 ├── .github/workflows/ci.yml      # CI (тесты + упаковка для 32/64-бит)
 ├── package.json
-└── LICENSE                       # GPL-3.0
+└── LICENSE.md                    # GPL-3.0
 ```
 
 ## 🧪 Тестирование
@@ -149,6 +149,6 @@ cargo fmt -- --check
 
 ## 📜 Лицензия
 
-Проект распространяется под лицензией [GNU General Public License v3.0](LICENSE).
+Проект распространяется под лицензией [GNU General Public License v3.0](LICENSE.md).
 
 Copyright © 2026 LNK File Management Center Contributors

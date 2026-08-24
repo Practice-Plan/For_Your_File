@@ -29,6 +29,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Verify release version
+        shell: pwsh
+        run: |
+          $packageVersion = (Get-Content package.json | ConvertFrom-Json).version
+          $cargoVersion = (Select-String -Path src-tauri/Cargo.toml -Pattern '^version = "([^"]+)"$').Matches.Groups[1].Value
+          $tauriVersion = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          if ($packageVersion -ne '0.0.3' -or $cargoVersion -ne '0.0.3' -or $tauriVersion -ne '0.0.3') { throw "Release versions are not synchronized" }
+
       - name: Type-check frontend
         run: npm run type-check
 
@@ -103,5 +111,6 @@ jobs:
         with:
           name: ${{ matrix.arch }}-installer
           path: |
-            D:\a\For_Your_File\For_Your_File\target\${{ matrix.target }}\release\*.exe
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.msi
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
           if-no-files-found: warn

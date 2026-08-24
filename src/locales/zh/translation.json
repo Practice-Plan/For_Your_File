@@ -15,7 +15,9 @@
     "emptyTitle": "输入以搜索",
     "emptySubtitle": "开始输入以搜索您的 LNK 文件",
     "loadingMore": "加载更多...",
-    "totalResults": "{{count}} 个结果"
+    "totalResults": "{{count}} 个结果",
+    "selectAll": "全选",
+    "multiSelectHint": "Ctrl+点击多选"
   },
   "entry": {
     "opens": "次打开",
@@ -41,6 +43,8 @@
     "deleteEntry": "删除项目",
     "saveChanges": "保存更改",
     "deleteConfirm": "您确定要删除此项目吗？此操作无法撤销。",
+    "openConfirmTitle": "打开项目",
+    "openConfirmMessage": "您确定要打开以下项目吗？",
     "never": "从未",
     "justNow": "刚刚",
     "minutesAgo": "{{count}} 分钟前",
@@ -134,8 +138,10 @@
   "contextMenu": {
     "addToApp": "添加到文件管理中心",
     "open": "打开",
+    "openAll": "打开全部 ({{count}})",
     "edit": "编辑",
     "delete": "删除",
+    "deleteAll": "删除全部 ({{count}})",
     "addToGroup": "添加到组",
     "removeFromGroup": "从该组移除",
     "removeFromGroupDisabled": "项目不在任何组中",
@@ -165,6 +171,17 @@
     "tagsOverrideHint": "留空则使用统一标签",
     "partialFailure": "部分导入失败，错误原因：",
     "moreErrors": "还有 {{count}} 条错误..."
+  },
+  "databasePreview": {
+    "title": "数据库预览",
+    "loading": "正在加载数据库...",
+    "loadingProgress": "已加载 {{loaded}} / {{total}} 条记录",
+    "ready": "数据库加载完成",
+    "error": "数据库加载失败",
+    "entries": "项目",
+    "groups": "分组",
+    "entry_groups": "项目分组关系",
+    "empty": "暂无数据"
   },
   "status": {
     "ready": "就绪",

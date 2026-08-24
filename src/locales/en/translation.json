@@ -15,7 +15,9 @@
     "emptyTitle": "Type to search",
     "emptySubtitle": "Start typing to search your LNK files",
     "loadingMore": "Loading more...",
-    "totalResults": "{{count}} result"
+    "totalResults": "{{count}} result",
+    "selectAll": "Select all",
+    "multiSelectHint": "Ctrl+click to multi-select"
   },
   "entry": {
     "opens": "opens",
@@ -41,6 +43,8 @@
     "deleteEntry": "Delete Entry",
     "saveChanges": "Save Changes",
     "deleteConfirm": "Are you sure you want to delete this entry? This action cannot be undone.",
+    "openConfirmTitle": "Open Entry",
+    "openConfirmMessage": "Are you sure you want to open the following item?",
     "never": "Never",
     "justNow": "Just now",
     "minutesAgo": "{{count}} minutes ago",
@@ -134,8 +138,10 @@
   "contextMenu": {
     "addToApp": "Add to File Management Center",
     "open": "Open",
+    "openAll": "Open all ({{count}})",
     "edit": "Edit",
     "delete": "Delete",
+    "deleteAll": "Delete all ({{count}})",
     "addToGroup": "Add to group",
     "removeFromGroup": "Remove from this group",
     "removeFromGroupDisabled": "Entry is not in a group",

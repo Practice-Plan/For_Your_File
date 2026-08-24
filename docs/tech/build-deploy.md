@@ -126,9 +126,9 @@ src-tauri/target/release/
 ├── lnk-file-management-center.exe  # Main executable
 └── bundle/
     ├── msi/
-    │   └── LNK File Management Center_0.1.0_x64.msi
+    │   └── LNK File Management Center_0.0.3_x64.msi
     └── nsis/
-        └── LNK File Management Center_0.1.0_x64-setup.exe
+        └── LNK File Management Center_0.0.3_x64-setup.exe
 ```
 
 ### Build Configuration
@@ -254,13 +254,13 @@ cargo tarpaulin --out Html
 **Installation**:
 ```powershell
 # Install MSI
-msiexec /i "LNK File Management Center_0.1.0_x64.msi"
+msiexec /i "LNK File Management Center_0.0.3_x64.msi"
 
 # Silent install
-msiexec /i "LNK File Management Center_0.1.0_x64.msi" /quiet
+msiexec /i "LNK File Management Center_0.0.3_x64.msi" /quiet
 
 # Uninstall
-msiexec /x "LNK File Management Center_0.1.0_x64.msi"
+msiexec /x "LNK File Management Center_0.0.3_x64.msi"
 ```
 
 ### NSIS Installer
@@ -270,10 +270,10 @@ msiexec /x "LNK File Management Center_0.1.0_x64.msi"
 **Installation**:
 ```powershell
 # Run installer
-.\LNK File Management Center_0.1.0_x64-setup.exe
+.\LNK File Management Center_0.0.3_x64-setup.exe
 
 # Silent install
-.\LNK File Management Center_0.1.0_x64-setup.exe /S
+.\LNK File Management Center_0.0.3_x64-setup.exe /S
 
 # Uninstall
 "C:\Program Files\LNK File Management Center\uninstall.exe" /S
@@ -483,7 +483,7 @@ schtasks /create /tn "LNK Backup" /tr "cmd /c copy ..." /sc daily /st 02:00
 
 3. **Install previous version**:
    ```powershell
-   msiexec /i LNK_File_Management_Center_0.1.0_x64.msi
+  msiexec /i LNK_File_Management_Center_0.0.3_x64.msi
    ```
 
 ### Configuration Migration

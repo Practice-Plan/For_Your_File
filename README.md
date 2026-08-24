@@ -7,7 +7,7 @@
 [中文](README-zh.md) | English | [Français](README-fr.md) | [Русский](README-ru.md) | [العربية](README-ar.md)
 
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
-![Version](https://img.shields.io/badge/Version-0.0.2-green.svg)
+![Version](https://img.shields.io/badge/Version-0.0.3-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6.svg)
 ![Rust](https://img.shields.io/badge/Rust-1.77.2+-orange.svg)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933.svg)
@@ -23,6 +23,7 @@ LNK File Management Center helps you manage Windows shortcut files (.lnk) in one
 - **⏰ Expiration reminders** — Set expiration dates for temporary files and receive reminders or clean them in bulk when they expire
 - **📚 Smart grouping** — 8-color grouping, drag-and-drop assignment, batch operations, and group import/export (JSON/CSV/HTML)
 - **📦 Batch import** — Drag-and-drop or browse to import multiple items, with unified tag/parameter/open-mode configuration and live progress
+- **🗃️ Database preview** — Inspect the complete local database in a separate window with real progress and bounded pagination
 - **🌐 Internationalization** — Supports Chinese, English, Français, Русский, and العربية
 - **🎨 Theme switching** — Light/dark themes with user preference persistence
 - **🖱️ Context menu integration** — Windows Explorer right-click menu integration for fast add actions
@@ -109,7 +110,7 @@ For_Your_File/
 │   └── user/                     # User guide
 ├── .github/workflows/ci.yml      # CI pipeline (tests + 32/64-bit packaging)
 ├── package.json
-└── LICENSE                       # GPL-3.0
+└── LICENSE.md                    # GPL-3.0
 ```
 
 ## 🧪 Testing
@@ -149,6 +150,6 @@ Contributions are welcome via Issues and Pull Requests. Please make sure:
 
 ## 📜 License
 
-This project is open source under the [GNU General Public License v3.0](LICENSE).
+This project is open source under the [GNU General Public License v3.0](LICENSE.md).
 
 Copyright © 2026 LNK File Management Center Contributors

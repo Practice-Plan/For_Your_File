@@ -15,7 +15,9 @@
     "emptyTitle": "Введите для поиска",
     "emptySubtitle": "Начните вводить для поиска ваших LNK файлов",
     "loadingMore": "Загрузка ещё...",
-    "totalResults": "{{count}} результат"
+    "totalResults": "{{count}} результат",
+    "selectAll": "Выбрать все",
+    "multiSelectHint": "Ctrl+клик для множественного выбора"
   },
   "entry": {
     "opens": "открытий",
@@ -41,6 +43,8 @@
     "deleteEntry": "Удалить запись",
     "saveChanges": "Сохранить изменения",
     "deleteConfirm": "Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.",
+    "openConfirmTitle": "Открыть запись",
+    "openConfirmMessage": "Вы уверены, что хотите открыть следующий элемент?",
     "never": "Никогда",
     "justNow": "Только что",
     "minutesAgo": "{{count}} минут назад",
@@ -134,8 +138,10 @@
   "contextMenu": {
     "addToApp": "Добавить в Центр управления файлами",
     "open": "Открыть",
+    "openAll": "Открыть все ({{count}})",
     "edit": "Изменить",
     "delete": "Удалить",
+    "deleteAll": "Удалить все ({{count}})",
     "addToGroup": "Добавить в группу",
     "removeFromGroup": "Удалить из этой группы",
     "removeFromGroupDisabled": "Запись не состоит в группе",

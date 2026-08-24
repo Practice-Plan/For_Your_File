@@ -623,7 +623,7 @@ What actually happened
 
 **Environment**
 - OS: Windows 11
-- App Version: 0.1.0
+- App Version: 0.0.3
 - Rust Version: 1.77.2
 
 **Screenshots**

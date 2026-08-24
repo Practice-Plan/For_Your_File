@@ -7,7 +7,7 @@
 [中文](README-zh.md) | [English](README.md) | Français | [Русский](README-ru.md) | [العربية](README-ar.md)
 
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
-![Version](https://img.shields.io/badge/Version-0.0.2-green.svg)
+![Version](https://img.shields.io/badge/Version-0.0.3-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6.svg)
 ![Rust](https://img.shields.io/badge/Rust-1.77.2+-orange.svg)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933.svg)
@@ -109,7 +109,7 @@ For_Your_File/
 │   └── user/                     # Guide utilisateur
 ├── .github/workflows/ci.yml      # CI (tests + packaging 32/64 bits)
 ├── package.json
-└── LICENSE                       # GPL-3.0
+└── LICENSE.md                    # GPL-3.0
 ```
 
 ## 🧪 Tests
@@ -149,6 +149,6 @@ Les contributions sont les bienvenues via les issues et les pull requests. Veuil
 
 ## 📜 Licence
 
-Ce projet est open source sous la licence [GNU General Public License v3.0](LICENSE).
+Ce projet est open source sous la licence [GNU General Public License v3.0](LICENSE.md).
 
 Copyright © 2026 LNK File Management Center Contributors

@@ -153,11 +153,12 @@ LNK File Management Center provides a safe and intelligent way to manage Windows
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.0.3 | 2026-08 | Added database preview with bounded pagination and real loading progress |
 | 0.1.0 | 2026-07 | Initial release |
 
 ## License
 
-MIT License - See LICENSE file for details
+GNU General Public License v3.0 - See LICENSE.md for details
 
 ## Support
 

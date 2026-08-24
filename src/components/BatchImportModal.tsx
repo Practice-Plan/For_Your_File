@@ -414,15 +414,6 @@ export function BatchImportModal({ isOpen, onClose, onCreated }: BatchImportModa
       // Count successes
       const successCount = allResults.filter(r => r.success).length
 
-      // Always rebuild FTS index after import — even if all entries were
-      // duplicates, the existing FTS index might be out of sync (which is
-      // exactly the bug where entries exist but can't be searched).
-      try {
-        await invoke('rebuild_fts_index')
-      } catch (e) {
-        console.warn('FTS rebuild failed (non-critical):', e)
-      }
-
       // Always notify parent to refresh entry list and invalidate search cache
       onCreated?.({} as Entry)
 

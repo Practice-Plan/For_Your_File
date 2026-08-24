@@ -15,6 +15,7 @@ LNK File Management Center is a powerful Windows application designed to help yo
 - **Global Hotkey**: Quick access with customizable keyboard shortcuts
 - **Context Menu Integration**: Add shortcuts directly from Windows Explorer
 - **Smart Sorting**: Multiple sorting options including frequency and recency
+- **Database Preview**: Inspect local database tables in a separate window with paginated loading
 
 ## Quick Start
 

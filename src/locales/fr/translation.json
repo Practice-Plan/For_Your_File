@@ -15,7 +15,9 @@
     "emptyTitle": "Tapez pour rechercher",
     "emptySubtitle": "Commencez à taper pour rechercher vos fichiers LNK",
     "loadingMore": "Chargement supplémentaire...",
-    "totalResults": "{{count}} résultat"
+    "totalResults": "{{count}} résultat",
+    "selectAll": "Tout sélectionner",
+    "multiSelectHint": "Ctrl+clic pour multi-sélection"
   },
   "entry": {
     "opens": "ouvertures",
@@ -41,6 +43,8 @@
     "deleteEntry": "Supprimer l'entrée",
     "saveChanges": "Enregistrer les modifications",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette entrée ? Cette action est irréversible.",
+    "openConfirmTitle": "Ouvrir l'entrée",
+    "openConfirmMessage": "Êtes-vous sûr de vouloir ouvrir l'élément suivant ?",
     "never": "Jamais",
     "justNow": "À l'instant",
     "minutesAgo": "{{count}} minutes ago",
@@ -134,8 +138,10 @@
   "contextMenu": {
     "addToApp": "Ajouter au Centre de gestion de fichiers",
     "open": "Ouvrir",
+    "openAll": "Tout ouvrir ({{count}})",
     "edit": "Modifier",
     "delete": "Supprimer",
+    "deleteAll": "Tout supprimer ({{count}})",
     "addToGroup": "Ajouter au groupe",
     "removeFromGroup": "Retirer de ce groupe",
     "removeFromGroupDisabled": "L'entrée n'est dans aucun groupe",

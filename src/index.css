@@ -20,6 +20,20 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background-color: #f9fafb; /* bg-gray-50 default (light) */
+  color-scheme: light dark;
+}
+
+/* Dark mode preload background - applied before React mounts */
+body.dark-bg-preload {
+  background-color: #1a1a2e !important;
+}
+
+/* When React takes over, Tailwind classes on body handle bg.
+   Remove the preload class once React has initialized. */
+.dark body,
+body.dark-bg-preload {
+  background-color: #1a1a2e;
 }
 
 /*

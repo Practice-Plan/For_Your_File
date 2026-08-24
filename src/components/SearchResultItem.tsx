@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { invoke } from '@tauri-apps/api/core'
 import {
   highlightText,
   formatRelativeTime,
@@ -8,6 +10,9 @@ import {
 } from '../utils/search'
 import { ExpirationIndicator, CountdownBadge, ExpirationTooltip } from './ExpirationIndicator'
 import { ExpirationStatus } from '../types'
+
+// Module-level icon cache (shared across all SearchResultItem instances)
+const iconCache = new Map<string, string | null>()
 
 interface SearchResultItemProps {
   id: string
@@ -20,7 +25,8 @@ interface SearchResultItemProps {
   expiresAt?: number | null
   query: string
   isSelected?: boolean
-  onClick?: () => void
+  isMultiSelected?: boolean
+  onClick?: (e: React.MouseEvent) => void
   onDoubleClick?: () => void
 }
 
@@ -62,12 +68,39 @@ export function SearchResultItem({
   expiresAt,
   query,
   isSelected = false,
+  isMultiSelected = false,
   onClick,
   onDoubleClick,
 }: SearchResultItemProps) {
   const tagsArray = parseTags(tags)
   const frequencyInfo = formatFrequency(frequency)
   const expirationStatus = computeExpirationStatus(expiresAt)
+  const [appIcon, setAppIcon] = useState<string | null>(null)
+
+  // Load app icon with caching
+  useEffect(() => {
+    const exePath = targetPath
+    if (!exePath) return
+
+    // Check cache first
+    if (iconCache.has(exePath)) {
+      setAppIcon(iconCache.get(exePath) || null)
+      return
+    }
+
+    // Mark as loading to prevent duplicate requests
+    iconCache.set(exePath, null)
+
+    invoke<string>('get_app_icon', { exePath })
+      .then(base64 => {
+        iconCache.set(exePath, base64 || null)
+        setAppIcon(base64 || null)
+      })
+      .catch(() => {
+        iconCache.set(exePath, null)
+        setAppIcon(null)
+      })
+  }, [targetPath])
   
   // Determine border style based on expiration status
   const borderClass = expirationStatus.type === 'Expired'
@@ -88,45 +121,66 @@ export function SearchResultItem({
         cursor-pointer
         transition-all duration-200
         ${borderClass}
-        ${isSelected
-          ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500'
-          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}
+        ${isMultiSelected
+          ? 'bg-primary-100 dark:bg-primary-900/40 border-l-2 border-l-primary-600'
+          : isSelected
+            ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500'
+            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}
       `}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       role="option"
-      aria-selected={isSelected}
+      aria-selected={isSelected || isMultiSelected}
       data-id={id}
     >
       <div className="flex items-start gap-3">
+        {/* Multi-select checkbox */}
+        {isMultiSelected && (
+          <div className="flex-shrink-0 mt-1">
+            <div className="w-5 h-5 rounded bg-primary-500 flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          </div>
+        )}
+
         {/* File icon */}
         <div className="flex-shrink-0 mt-1">
-          <div className={`w-8 h-8 flex items-center justify-center rounded ${
+          <div className={`w-8 h-8 flex items-center justify-center rounded overflow-hidden ${
             expirationStatus.type === 'Expired'
               ? 'bg-red-100 dark:bg-red-900/30'
               : expirationStatus.type === 'ExpiringSoon'
                 ? 'bg-yellow-100 dark:bg-yellow-900/30'
                 : 'bg-gray-100 dark:bg-gray-800'
           }`}>
-            <svg
-              className={`w-5 h-5 ${
-                expirationStatus.type === 'Expired'
-                  ? 'text-red-600 dark:text-red-400'
-                  : expirationStatus.type === 'ExpiringSoon'
-                    ? 'text-yellow-600 dark:text-yellow-400'
-                    : 'text-gray-600 dark:text-gray-400'
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
+            {appIcon ? (
+              <img
+                src={`data:image/png;base64,${appIcon}`}
+                alt=""
+                className="w-6 h-6 object-contain"
               />
-            </svg>
+            ) : (
+              <svg
+                className={`w-5 h-5 ${
+                  expirationStatus.type === 'Expired'
+                    ? 'text-red-600 dark:text-red-400'
+                    : expirationStatus.type === 'ExpiringSoon'
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-gray-600 dark:text-gray-400'
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+            )}
           </div>
         </div>
 

@@ -5,8 +5,45 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LNK File Management Center</title>
+    <script>
+      // Apply theme BEFORE React renders to prevent dark mode flash.
+      // This runs inline (before any module script) so the correct
+      // theme class is on <html> and body bg is set on the first paint.
+      (function() {
+        try {
+          var saved = localStorage.getItem('app-theme');
+          var theme = null;
+          if (saved === 'light' || saved === 'dark') {
+            theme = saved;
+          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          } else {
+            theme = 'light';
+          }
+
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.body.classList.remove('bg-gray-50');
+            document.body.classList.add('dark-bg-preload');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.body.classList.remove('dark-bg-preload');
+            document.body.classList.add('bg-gray-50');
+          }
+        } catch (e) {
+          // If localStorage is unavailable (SSR/private mode), default to light
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script>
+    <style id="preload-no-transition">
+      /* Prevent transition flash during initial theme application */
+      html, body {
+        transition: none !important;
+      }
+    </style>
   </head>
-  <body class="bg-gray-50 dark:bg-dark-bg">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

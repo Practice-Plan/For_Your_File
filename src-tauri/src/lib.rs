@@ -396,6 +396,8 @@ pub fn run() {
             commands::update_entry,
             commands::delete_entry,
             commands::get_all_entries,
+            commands::open_database_preview,
+            commands::get_database_preview_batch,
             commands::search_entries,
             commands::open_lnk_file,
             commands::open_entry,
