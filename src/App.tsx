@@ -49,6 +49,17 @@ interface WindowState {
 
 function App() {
   const { t } = useTranslation()
+  const ppcConnectStartedRef = useRef(false)
+
+  // Connect in the background so the main UI remains responsive while PPC is
+  // checked, started through the user launch path, and authenticated.
+  useEffect(() => {
+    if (ppcConnectStartedRef.current) return
+    ppcConnectStartedRef.current = true
+    void invoke('ppc_connect_auto').catch((error) => {
+      console.warn('PPC connection unavailable:', error)
+    })
+  }, [])
 
   const [windowState, setWindowState] = useState<WindowState>({
     isMaximized: false,

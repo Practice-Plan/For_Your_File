@@ -511,67 +511,46 @@ pub fn resolve_data_dir(app_handle: &tauri::AppHandle) -> Result<std::path::Path
 // PPC launcher
 // ---------------------------------------------------------------------------
 
-/// Find PPC in the standard 64-bit or 32-bit installation directory.
+/// Find the only supported per-user PPC installation.
 #[cfg(windows)]
 fn find_installed_ppc() -> Option<std::path::PathBuf> {
-    let candidates = [
-        std::path::PathBuf::from(r"C:\Program Files\PPC\ppc.exe"),
-        std::path::PathBuf::from(r"C:\Program Files (x86)\PPC\ppc.exe"),
-    ];
-    candidates.into_iter().find(|path| path.is_file())
+    std::env::var_os("APPDATA")
+        .map(std::path::PathBuf::from)
+        .map(|path| path.join("wang.station").join("ppc.exe"))
+        .filter(|path| path.is_file())
 }
 
-/// Launch an installed PPC application with administrator privileges through UAC.
+/// Launch the per-user PPC through Explorer, matching a user double-click.
+/// Explorer honors the executable's UAC manifest and presents elevation when
+/// required; the application does not spawn or own the PPC process.
 #[cfg(windows)]
-fn launch_installed_ppc() -> Result<std::process::Child, String> {
-    let executable = find_installed_ppc()
-        .ok_or_else(|| "PPC executable was not found in standard install paths".to_string())?;
-    let executable = executable.to_string_lossy().replace('"', "'");
-
-    log::info!(
-        "Launching installed PPC with administrator privileges: {}",
-        executable
-    );
+fn launch_installed_ppc_as_user() -> Result<(), String> {
+    let executable = find_installed_ppc().ok_or_else(|| {
+        "PPC executable not found at %APPDATA%\\wang.station\\ppc.exe".to_string()
+    })?;
+    let executable = executable.to_string_lossy().replace('"', "''");
     let script = format!(
-        "Start-Process -FilePath '{}' -Verb RunAs -WorkingDirectory (Split-Path -Parent '{}')",
-        executable, executable
-    );
-
-    std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-Command", &script])
-        .spawn()
-        .map_err(|e| format!("Failed to launch installed PPC ({}): {}", executable, e))
-}
-
-/// Launch PPC in a visible administrator terminal through UAC.
-/// If no installed executable exists, use the `ppc` command from PATH.
-#[cfg(windows)]
-fn launch_ppc_in_terminal() -> Result<std::process::Child, String> {
-    let executable = find_installed_ppc()
-        .map(|path| path.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "ppc".to_string());
-
-    log::info!(
-        "Launching PPC in an elevated visible terminal: {}",
+        "$path = '{}'; Start-Process -FilePath 'explorer.exe' -ArgumentList ('\"' + $path + '\"')",
         executable
     );
 
-    // Start-Process -Verb RunAs triggers the Windows UAC prompt and starts
-    // the terminal, plus PPC, with administrator privileges.
-    let command_line = format!(r#"/K "{}""#, executable).replace('"', "''");
-    let script = format!(
-        "Start-Process -FilePath 'cmd.exe' -ArgumentList '{}' -Verb RunAs -Wait",
-        command_line,
+    log::info!(
+        "Starting per-user PPC through Explorer via PowerShell: {}",
+        executable
     );
-
     std::process::Command::new("powershell.exe")
         .args(["-NoProfile", "-Command", &script])
-        .spawn()
-        .map_err(|e| {
-            format!(
-                "Failed to start elevated PPC terminal ({}): {}",
-                executable, e
-            )
+        .status()
+        .map_err(|e| format!("Failed to invoke PowerShell for PPC: {}", e))
+        .and_then(|status| {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "PowerShell failed to start PPC (exit code {})",
+                    status
+                ))
+            }
         })
 }
 
@@ -625,42 +604,30 @@ pub fn ppc_connect_auto(
     if !running {
         log::info!("PPC is not connected after three attempts; checking startup...");
 
-        // First try the installed application. It is the normal launch path
-        // and preserves its own working directory and startup configuration.
+        // Start the per-user executable through PowerShell as the user would,
+        // then wait for PPC to become reachable before continuing.
         #[cfg(windows)]
         {
-            let installed_started = launch_installed_ppc().is_ok();
-            if installed_started && wait_for_port(PPC_HOST, PPC_PORT, 10) {
-                log::info!("Installed PPC is reachable, continuing with connection...");
-            } else {
-                log::warn!("Installed PPC did not become reachable; falling back to terminal...");
-                match launch_ppc_in_terminal() {
-                    Ok(_child) if wait_for_port(PPC_HOST, PPC_PORT, 10) => {
-                        log::info!("PPC terminal is reachable, continuing with connection...");
-                    }
-                    Ok(_) => {
-                        let err_msg =
-                            "PPC did not become reachable after installed app and terminal launch"
-                                .to_string();
-                        log::error!("{}", err_msg);
-                        let mut session = state.session.lock().map_err(|e| e.to_string())?;
-                        session.connected = false;
-                        session.status_message = err_msg.clone();
-                        session.last_error_code = Some("0x10017".to_string());
-                        show_ppc_warning_dialog(&app_handle, &err_msg);
-                        return Err(err_msg);
-                    }
-                    Err(e) => {
-                        log::error!("Failed to launch PPC in terminal: {}", e);
-                        let mut session = state.session.lock().map_err(|e| e.to_string())?;
-                        session.connected = false;
-                        session.status_message = e.clone();
-                        session.last_error_code = Some("0x10017".to_string());
-                        show_ppc_warning_dialog(&app_handle, &e);
-                        return Err(e);
-                    }
-                }
+            if let Err(e) = launch_installed_ppc_as_user() {
+                log::error!("Failed to launch per-user PPC: {}", e);
+                let mut session = state.session.lock().map_err(|e| e.to_string())?;
+                session.connected = false;
+                session.status_message = e.clone();
+                session.last_error_code = Some("0x10017".to_string());
+                show_ppc_warning_dialog(&app_handle, &e);
+                return Err(e);
             }
+            if !wait_for_port(PPC_HOST, PPC_PORT, 10) {
+                let err_msg = "PPC did not become reachable after user-style launch".to_string();
+                log::error!("{}", err_msg);
+                let mut session = state.session.lock().map_err(|e| e.to_string())?;
+                session.connected = false;
+                session.status_message = err_msg.clone();
+                session.last_error_code = Some("0x10017".to_string());
+                show_ppc_warning_dialog(&app_handle, &err_msg);
+                return Err(err_msg);
+            }
+            log::info!("Per-user PPC is reachable, continuing with connection...");
         }
 
         #[cfg(not(windows))]

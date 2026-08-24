@@ -1223,7 +1223,7 @@ pub fn open_database_preview(app_handle: AppHandle) -> Result<(), String> {
     WebviewWindowBuilder::new(
         &app_handle,
         "database-preview",
-        WebviewUrl::App("index.html?window=database-preview".into()),
+        WebviewUrl::App("index.html".into()),
     )
     .title("Database Preview")
     .inner_size(1100.0, 720.0)
