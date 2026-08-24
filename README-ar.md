@@ -132,9 +132,9 @@ cargo fmt -- --check
 
 ## 🔧 قاعدة البيانات
 
-- **الموقع**: `%APPDATA%/lnk-management/lnk_management.db`
+- **الموقع**: `%APPDATA%/wang.station/app/For_Your_File/lnk_management.db`
 - **الجداول**: `entries` (العناصر)، `groups` (المجموعات)، `entry_groups` (علاقة many-to-many)، `entries_fts` (فهرس البحث النصي FTS5)
-- **ذاكرة أيقونات مؤقتة**: `%APPDATA%/lnk-management/icon_cache/` (مفتاح تجزئة + إبطال حسب وقت التعديل)
+- **ذاكرة أيقونات مؤقتة**: `%APPDATA%/wang.station/app/For_Your_File/icon_cache/` (مفتاح تجزئة + إبطال حسب وقت التعديل)
 
 ## 📄 الوثائق
 

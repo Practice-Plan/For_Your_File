@@ -134,16 +134,24 @@ pub fn run() {
         .setup(move |app| {
             // Initialize logging
             if cfg!(debug_assertions) {
+                let log_dir = ppc_linker::resolve_data_dir(app.handle())
+                    .map(|dir| dir.join("logs"))
+                    .map_err(|error| format!("Failed to resolve log directory: {}", error))?;
+                std::fs::create_dir_all(&log_dir)?;
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .level(log::LevelFilter::Info)
+                        .target(tauri_plugin_log::Target::new(
+                            tauri_plugin_log::TargetKind::Folder {
+                                path: log_dir,
+                                file_name: Some("app.log".into()),
+                            },
+                        ))
                         .build(),
                 )?;
             }
 
-            // Warm up data dir resolution (tries PPC-managed path first, so
-            // the database and configs land under <ppc_path>/app/For_Your_File/config
-            // when PPC is reachable; otherwise falls back to %APPDATA%/lnk-management).
+            // Warm up the fixed application data directory.
             let _ = ppc_linker::resolve_data_dir(app.handle());
 
             // Initialize database (creates tables, indexes, triggers if missing)

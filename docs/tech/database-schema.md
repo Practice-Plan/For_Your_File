@@ -10,7 +10,7 @@ LNK File Management Center uses SQLite as its local database engine, providing:
 - Cross-platform compatibility
 - Excellent performance for local applications
 
-**Database Location**: `%APPDATA%/lnk-management/lnk_management.db`
+**Database Location**: `%APPDATA%/wang.station/app/For_Your_File/lnk_management.db`
 
 ## Entity-Relationship Diagram
 

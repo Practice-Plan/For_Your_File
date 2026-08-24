@@ -379,7 +379,7 @@ git push origin v0.2.0
 
 ### Application Configuration
 
-**Location**: `%APPDATA%\lnk-management\config.json`
+**Location**: `%APPDATA%\wang.station\app\For_Your_File\hotkey_config.json`
 
 **Default Configuration**:
 ```json
@@ -408,7 +408,7 @@ git push origin v0.2.0
 
 ### Database Location
 
-**Default**: `%APPDATA%\lnk-management\lnk_management.db`
+**Default**: `%APPDATA%\wang.station\app\For_Your_File\lnk_management.db`
 
 **Custom Location**:
 ```powershell
@@ -422,7 +422,7 @@ set LNK_DB_PATH=D:\Data\lnk_management.db
 
 **Log Level**: Configurable in development mode
 
-**Log Location**: `%APPDATA%\lnk-management\logs\`
+**Log Location**: `%APPDATA%\wang.station\app\For_Your_File\logs\`
 
 **Configuration**:
 ```rust
@@ -463,7 +463,7 @@ if let Some(update) = update {
 
 ```powershell
 # Manual backup
-copy %APPDATA%\lnk-management\lnk_management.db %APPDATA%\lnk-management\backup\lnk_management_%date%.db
+copy %APPDATA%\wang.station\app\For_Your_File\lnk_management.db %APPDATA%\wang.station\app\For_Your_File\backup\lnk_management_%date%.db
 
 # Automated backup (Windows Task Scheduler)
 schtasks /create /tn "LNK Backup" /tr "cmd /c copy ..." /sc daily /st 02:00
@@ -478,7 +478,7 @@ schtasks /create /tn "LNK Backup" /tr "cmd /c copy ..." /sc daily /st 02:00
 
 2. **Restore database backup**:
    ```powershell
-   copy backup\lnk_management_20260725.db %APPDATA%\lnk-management\lnk_management.db
+  copy backup\lnk_management_20260725.db %APPDATA%\wang.station\app\For_Your_File\lnk_management.db
    ```
 
 3. **Install previous version**:
@@ -490,17 +490,17 @@ schtasks /create /tn "LNK Backup" /tr "cmd /c copy ..." /sc daily /st 02:00
 
 ```powershell
 # Backup configuration
-copy %APPDATA%\lnk-management\config.json config_backup.json
+copy %APPDATA%\wang.station\app\For_Your_File\hotkey_config.json config_backup.json
 
 # Restore configuration
-copy config_backup.json %APPDATA%\lnk-management\config.json
+copy config_backup.json %APPDATA%\wang.station\app\For_Your_File\hotkey_config.json
 ```
 
 ## Monitoring and Logging
 
 ### Application Logs
 
-**Location**: `%APPDATA%\lnk-management\logs\app.log`
+**Location**: `%APPDATA%\wang.station\app\For_Your_File\logs\app.log`
 
 **Log Format**:
 ```
@@ -523,7 +523,7 @@ log::info!("Operation completed in {:?}", duration);
 
 ### Crash Reports
 
-**Location**: `%APPDATA%\lnk-management\crashes\`
+**Location**: `%APPDATA%\wang.station\app\For_Your_File\crashes\`
 
 **Report Contents**:
 - Stack trace
@@ -594,13 +594,13 @@ msiexec /i installer.msi /l*v install.log
 **Solutions**:
 ```powershell
 # Check logs
-type %APPDATA%\lnk-management\logs\app.log
+type %APPDATA%\wang.station\app\For_Your_File\logs\app.log
 
 # Verify database integrity
-sqlite3 %APPDATA%\lnk-management\lnk_management.db "PRAGMA integrity_check;"
+sqlite3 %APPDATA%\wang.station\app\For_Your_File\lnk_management.db "PRAGMA integrity_check;"
 
 # Reset configuration
-del %APPDATA%\lnk-management\config.json
+del %APPDATA%\wang.station\app\For_Your_File\hotkey_config.json
 ```
 
 ## CI/CD Pipeline

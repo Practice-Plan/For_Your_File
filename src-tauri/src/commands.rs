@@ -58,7 +58,7 @@ pub fn list_installed_apps() -> Result<Vec<app_scanner::InstalledApp>, String> {
 /// Extract an application's icon as a base64-encoded PNG string.
 /// Used by the app selector modal to display application icons.
 ///
-/// Icons are cached on disk under `<app_data_dir>/icon_cache/`. On first call
+/// Icons are cached on disk under `%APPDATA%/wang.station/app/For_Your_File/icon_cache/`. On first call
 /// the icon is extracted via native Windows API and saved to cache. Subsequent
 /// calls (even after app restart) read directly from cache unless the exe has
 /// been modified.
@@ -66,7 +66,7 @@ pub fn list_installed_apps() -> Result<Vec<app_scanner::InstalledApp>, String> {
 pub fn get_app_icon(app_handle: AppHandle, exe_path: String) -> Result<String, String> {
     log::debug!("Extracting icon for: {}", exe_path);
 
-    // Build cache directory path: <app_data_dir>/icon_cache/
+    // Build cache directory path under the fixed application data root.
     let cache_dir = db::get_database_path(&app_handle)
         .ok()
         .and_then(|p| p.parent().map(|d| d.join("icon_cache")));

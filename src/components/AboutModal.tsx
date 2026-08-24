@@ -59,9 +59,7 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
               {/* Header with icon */}
               <div className="bg-gradient-to-tr from-blue-500 to-orange-500 px-6 py-8 text-center">
                 <div className="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <svg className="w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+                  <img src="/app-icon.png" alt="" className="w-12 h-12 rounded-xl object-contain" />
                 </div>
                 <h2 className="text-xl font-semibold text-white">{t('app.name')}</h2>
                 <p className="text-sm text-primary-100 mt-1">v{version}</p>

@@ -192,7 +192,7 @@ To completely remove all application data:
 1. Uninstall the application
 2. Delete the data folder:
    ```
-   %APPDATA%\LNK Management Center
+   %APPDATA%\wang.station\app\For_Your_File
    ```
 3. Remove registry entries (optional):
    ```

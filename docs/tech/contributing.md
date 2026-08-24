@@ -711,7 +711,7 @@ npm run analyze
 
 ```powershell
 # Connect to database
-sqlite3 %APPDATA%\lnk-management\lnk_management.db
+sqlite3 %APPDATA%\wang.station\app\For_Your_File\lnk_management.db
 
 # Check schema
 .schema

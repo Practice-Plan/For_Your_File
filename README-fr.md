@@ -130,9 +130,9 @@ cargo fmt -- --check
 
 ## 🔧 Base de données
 
-- **Emplacement** : `%APPDATA%/lnk-management/lnk_management.db`
+- **Emplacement** : `%APPDATA%/wang.station/app/For_Your_File/lnk_management.db`
 - **Tables** : `entries` (éléments), `groups` (groupes), `entry_groups` (relation plusieurs à plusieurs), `entries_fts` (index de recherche FTS5)
-- **Cache des icônes** : `%APPDATA%/lnk-management/icon_cache/` (clé de hachage + invalidation par heure de modification)
+- **Cache des icônes** : `%APPDATA%/wang.station/app/For_Your_File/icon_cache/` (clé de hachage + invalidation par heure de modification)
 
 ## 📄 Documentation
 

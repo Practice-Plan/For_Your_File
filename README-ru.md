@@ -130,9 +130,9 @@ cargo fmt -- --check
 
 ## 🔧 База данных
 
-- **Расположение**: `%APPDATA%/lnk-management/lnk_management.db`
+- **Расположение**: `%APPDATA%/wang.station/app/For_Your_File/lnk_management.db`
 - **Таблицы**: `entries` (элементы), `groups` (группы), `entry_groups` (связь многие-ко-многим), `entries_fts` (полнотекстовый индекс FTS5)
-- **Кэш иконок**: `%APPDATA%/lnk-management/icon_cache/` (хэш-ключ + инвалидирование по времени изменения)
+- **Кэш иконок**: `%APPDATA%/wang.station/app/For_Your_File/icon_cache/` (хэш-ключ + инвалидирование по времени изменения)
 
 ## 📄 Документация
 

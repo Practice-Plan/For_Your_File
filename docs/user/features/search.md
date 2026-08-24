@@ -146,7 +146,7 @@ The application maintains a search index for fast results:
 
 - **Automatic Indexing**: Index updates automatically when entries are added/modified
 - **Manual Reindex**: Settings > Advanced > Rebuild Search Index
-- **Index Location**: `%APPDATA%\LNK Management Center\index.db`
+- **Index Location**: `%APPDATA%\wang.station\app\For_Your_File\lnk_management.db`
 
 ## Tips for Effective Search
 

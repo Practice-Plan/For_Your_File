@@ -15,7 +15,7 @@ Before troubleshooting, run these checks:
 
 Logs are located at:
 ```
-%APPDATA%\LNK Management Center\logs\
+%APPDATA%\wang.station\app\For_Your_File\logs\
 ```
 
 To view logs:
@@ -55,7 +55,7 @@ Run: `reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F301722
 **3. Reinstall Application**
 
 1. Uninstall via Settings > Apps
-2. Delete `%APPDATA%\LNK Management Center`
+2. Delete `%APPDATA%\wang.station\app\For_Your_File`
 3. Download and install fresh
 
 ---
@@ -86,7 +86,7 @@ Run: `reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F301722
 ⚠️ **Warning**: This will delete all entries.
 
 1. Close the application
-2. Delete `%APPDATA%\LNK Management Center\data\lnk.db`
+2. Delete `%APPDATA%\wang.station\app\For_Your_File\lnk_management.db`
 3. Restart the application
 
 ---

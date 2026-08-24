@@ -131,9 +131,9 @@ cargo fmt -- --check
 
 ## 🔧 数据库
 
-- **位置**: `%APPDATA%/lnk-management/lnk_management.db`
+- **位置**: `%APPDATA%/wang.station/app/For_Your_File/lnk_management.db`
 - **表**: `entries`（条目）、`groups`（分组）、`entry_groups`（多对多）、`entries_fts`（FTS5 全文索引）
-- **图标缓存**: `%APPDATA%/lnk-management/icon_cache/`（hash 键 + 修改时间失效）
+- **图标缓存**: `%APPDATA%/wang.station/app/For_Your_File/icon_cache/`（hash 键 + 修改时间失效）
 
 ## 📄 文档
 

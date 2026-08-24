@@ -131,9 +131,9 @@ cargo fmt -- --check
 
 ## 🔧 Database
 
-- **Location**: `%APPDATA%/lnk-management/lnk_management.db`
+- **Location**: `%APPDATA%/wang.station/app/For_Your_File/lnk_management.db`
 - **Tables**: `entries` (items), `groups` (groups), `entry_groups` (many-to-many), `entries_fts` (FTS5 full-text index)
-- **Icon cache**: `%APPDATA%/lnk-management/icon_cache/` (hash key + modification-time invalidation)
+- **Icon cache**: `%APPDATA%/wang.station/app/For_Your_File/icon_cache/` (hash key + modification-time invalidation)
 
 ## 📄 Documentation
 

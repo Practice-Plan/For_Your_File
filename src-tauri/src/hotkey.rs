@@ -459,8 +459,8 @@ impl Default for HotkeyManager {
 /// Get the hotkey config file path inside the app data directory.
 ///
 /// The config is stored as `hotkey_config.json` in the app data directory
-/// (same directory as the SQLite database). When PPC is available, this
-/// resolves to `<ppc_path>/app/For_Your_File/config/hotkey_config.json`.
+/// (same directory as the SQLite database), under
+/// `%APPDATA%/wang.station/app/For_Your_File/`.
 fn get_config_path(app_handle: &AppHandle<tauri::Wry>) -> Result<std::path::PathBuf, String> {
     let data_dir = crate::ppc_linker::resolve_data_dir(app_handle)?;
     Ok(data_dir.join("hotkey_config.json"))

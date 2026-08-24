@@ -152,7 +152,7 @@ Restart the application for changes to take effect.
 4. Save
 
 **Database Backup:**
-Copy `%APPDATA%\LNK Management Center\data\lnk.db`
+Copy `%APPDATA%\wang.station\app\For_Your_File\lnk_management.db`
 
 ## Troubleshooting
 
@@ -371,7 +371,7 @@ Plugin support is planned for future versions. Currently, you can:
 ### Can I access the database directly?
 
 The database is SQLite:
-- Location: `%APPDATA%\LNK Management Center\data\lnk.db`
+- Location: `%APPDATA%\wang.station\app\For_Your_File\lnk_management.db`
 - Use any SQLite tool to access
 - Modify at your own risk
 - Backup before modifying

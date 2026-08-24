@@ -364,6 +364,7 @@ const PPC_FAIL_COOLDOWN_SECS: u64 = 30;
 /// PPCPATH is not a public command, so this performs REGISTER_APP → AUTH →
 /// PPCPATH on a single TCP connection. Returns the PPC base directory
 /// (the directory containing ppc.exe).
+#[allow(dead_code)]
 fn query_ppc_base_path() -> Result<std::path::PathBuf, String> {
     // Fast path: cached value from a previous successful resolution
     if let Some(cached) = PPC_BASE_PATH_CACHE.lock().unwrap().as_ref() {
@@ -479,68 +480,99 @@ fn query_ppc_base_path() -> Result<std::path::PathBuf, String> {
 
 /// Resolve the application data directory for For_Your_File.
 ///
-/// When PPC is reachable, config files are stored under:
-///   `<ppc_path>/app/For_Your_File/config`
+/// All mutable application data is stored under:
+///   `%APPDATA%/wang.station/app/For_Your_File`
 ///
-/// When PPC is not available, falls back to the standard app data dir:
-///   `%APPDATA%/lnk-management`
-///
-/// The directory is created if it does not exist.
+/// PPC remains available as a communication service, but it does not control
+/// this application's local paths.
 pub fn resolve_data_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
-    // Try PPC-managed path first
-    match query_ppc_base_path() {
-        Ok(ppc_path) => {
-            let dir = ppc_path.join("app").join("For_Your_File").join("config");
-            if std::fs::create_dir_all(&dir).is_ok() {
-                log::info!(
-                    "Data directory resolved to PPC-managed path: {}",
-                    dir.display()
-                );
-                return Ok(dir);
-            }
-            log::warn!(
-                "Failed to create PPC-managed data dir {}, falling back",
-                dir.display()
-            );
-        }
-        Err(e) => {
-            log::debug!("PPC path unavailable ({}), falling back to app data dir", e);
-        }
-    }
-
-    // Fallback: standard app data directory
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    let app_data_dir = app_data_dir
+        .parent()
+        .ok_or_else(|| "Failed to resolve the roaming app data directory".to_string())?
+        .join("wang.station")
+        .join("app")
+        .join("For_Your_File");
 
     std::fs::create_dir_all(&app_data_dir)
         .map_err(|e| format!("Failed to create data directory: {}", e))?;
 
     log::info!(
-        "Data directory resolved to fallback path: {}",
+        "Data directory resolved to wang.station path: {}",
         app_data_dir.display()
     );
     Ok(app_data_dir)
 }
 
 // ---------------------------------------------------------------------------
-// Silent PPC launcher
+// PPC launcher
 // ---------------------------------------------------------------------------
 
-/// Silently launch ppc.exe in the background (no console window).
-/// PPC must be in the system PATH — no hardcoded paths are searched.
-/// Returns Ok with the child process handle if launched, or an error message.
+/// Find PPC in the standard 64-bit or 32-bit installation directory.
 #[cfg(windows)]
-fn launch_ppc_silent() -> Result<std::process::Child, String> {
-    use std::os::windows::process::CommandExt;
+fn find_installed_ppc() -> Option<std::path::PathBuf> {
+    let candidates = [
+        std::path::PathBuf::from(r"C:\Program Files\PPC\ppc.exe"),
+        std::path::PathBuf::from(r"C:\Program Files (x86)\PPC\ppc.exe"),
+    ];
+    candidates.into_iter().find(|path| path.is_file())
+}
 
-    log::info!("Launching PPC silently via PATH...");
+/// Launch an installed PPC application with administrator privileges through UAC.
+#[cfg(windows)]
+fn launch_installed_ppc() -> Result<std::process::Child, String> {
+    let executable = find_installed_ppc()
+        .ok_or_else(|| "PPC executable was not found in standard install paths".to_string())?;
+    let executable = executable.to_string_lossy().replace('"', "'");
 
-    std::process::Command::new("ppc")
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW — no console popup
+    log::info!(
+        "Launching installed PPC with administrator privileges: {}",
+        executable
+    );
+    let script = format!(
+        "Start-Process -FilePath '{}' -Verb RunAs -WorkingDirectory (Split-Path -Parent '{}')",
+        executable, executable
+    );
+
+    std::process::Command::new("powershell.exe")
+        .args(["-NoProfile", "-Command", &script])
         .spawn()
-        .map_err(|e| format!("Failed to launch ppc from PATH: {}", e))
+        .map_err(|e| format!("Failed to launch installed PPC ({}): {}", executable, e))
+}
+
+/// Launch PPC in a visible administrator terminal through UAC.
+/// If no installed executable exists, use the `ppc` command from PATH.
+#[cfg(windows)]
+fn launch_ppc_in_terminal() -> Result<std::process::Child, String> {
+    let executable = find_installed_ppc()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "ppc".to_string());
+
+    log::info!(
+        "Launching PPC in an elevated visible terminal: {}",
+        executable
+    );
+
+    // Start-Process -Verb RunAs triggers the Windows UAC prompt and starts
+    // the terminal, plus PPC, with administrator privileges.
+    let command_line = format!(r#"/K "{}""#, executable).replace('"', "''");
+    let script = format!(
+        "Start-Process -FilePath 'cmd.exe' -ArgumentList '{}' -Verb RunAs -Wait",
+        command_line,
+    );
+
+    std::process::Command::new("powershell.exe")
+        .args(["-NoProfile", "-Command", &script])
+        .spawn()
+        .map_err(|e| {
+            format!(
+                "Failed to start elevated PPC terminal ({}): {}",
+                executable, e
+            )
+        })
 }
 
 /// Wait for a TCP port to become connectable, polling at a fixed interval.
@@ -569,66 +601,64 @@ fn wait_for_port(host: &str, port: u16, timeout_secs: u64) -> bool {
 // Tauri commands
 // ---------------------------------------------------------------------------
 
-/// Connect to PPC with auto-launch: ping → (launch if down) → retry →
+/// Connect to PPC with auto-launch: retry ping three times → (launch if down) →
 /// version check → register → authenticate.
-/// If PPC cannot be reached after launching and retrying, a warning dialog
-/// is shown via the Tauri dialog plugin.
+/// If PPC cannot be reached after launching, a warning dialog is shown.
 #[tauri::command]
 pub fn ppc_connect_auto(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, PpcState>,
 ) -> Result<PpcSession, String> {
-    // Step 1: Try to ping PPC
-    let running = ping_ppc().unwrap_or(false);
+    // Step 1: Verify the connection three times before diagnosing PPC as down.
+    let mut running = false;
+    for attempt in 1..=3 {
+        if ping_ppc().unwrap_or(false) {
+            running = true;
+            break;
+        }
+        log::warn!("PPC connection attempt {}/3 failed", attempt);
+        if attempt < 3 {
+            std::thread::sleep(Duration::from_millis(500));
+        }
+    }
 
     if !running {
-        log::info!("PPC not running, attempting silent launch...");
+        log::info!("PPC is not connected after three attempts; checking startup...");
 
-        // Try to launch ppc.exe silently
+        // First try the installed application. It is the normal launch path
+        // and preserves its own working directory and startup configuration.
         #[cfg(windows)]
         {
-            match launch_ppc_silent() {
-                Ok(_child) => {
-                    log::info!("PPC launched, waiting for it to bind to port...");
-                    // Wait up to 10 seconds for PPC to become reachable
-                    if !wait_for_port(PPC_HOST, PPC_PORT, 10) {
+            let installed_started = launch_installed_ppc().is_ok();
+            if installed_started && wait_for_port(PPC_HOST, PPC_PORT, 10) {
+                log::info!("Installed PPC is reachable, continuing with connection...");
+            } else {
+                log::warn!("Installed PPC did not become reachable; falling back to terminal...");
+                match launch_ppc_in_terminal() {
+                    Ok(_child) if wait_for_port(PPC_HOST, PPC_PORT, 10) => {
+                        log::info!("PPC terminal is reachable, continuing with connection...");
+                    }
+                    Ok(_) => {
                         let err_msg =
-                            "PPC was launched but did not become reachable within 10s".to_string();
+                            "PPC did not become reachable after installed app and terminal launch"
+                                .to_string();
                         log::error!("{}", err_msg);
-
-                        // Update session state
-                        {
-                            let mut session = state.session.lock().map_err(|e| e.to_string())?;
-                            session.connected = false;
-                            session.status_message = err_msg.clone();
-                            session.last_error_code = Some("0x10017".to_string());
-                        }
-
-                        // Show warning dialog
-                        show_ppc_warning_dialog(&app_handle, "Failed to connect to PPC. PPC was launched but did not respond in time.");
-
+                        let mut session = state.session.lock().map_err(|e| e.to_string())?;
+                        session.connected = false;
+                        session.status_message = err_msg.clone();
+                        session.last_error_code = Some("0x10017".to_string());
+                        show_ppc_warning_dialog(&app_handle, &err_msg);
                         return Err(err_msg);
                     }
-                    log::info!("PPC is now reachable, continuing with connection...");
-                }
-                Err(e) => {
-                    log::error!("Failed to launch PPC: {}", e);
-
-                    // Update session state
-                    {
+                    Err(e) => {
+                        log::error!("Failed to launch PPC in terminal: {}", e);
                         let mut session = state.session.lock().map_err(|e| e.to_string())?;
                         session.connected = false;
                         session.status_message = e.clone();
                         session.last_error_code = Some("0x10017".to_string());
+                        show_ppc_warning_dialog(&app_handle, &e);
+                        return Err(e);
                     }
-
-                    // Show warning dialog
-                    show_ppc_warning_dialog(
-                        &app_handle,
-                        &format!("Failed to connect to PPC.\n{}", e),
-                    );
-
-                    return Err(e);
                 }
             }
         }
