@@ -6,10 +6,8 @@ import type { SearchResult, PaginatedResults, Entry } from '../types'
 interface UseSearchOptions {
   /** Debounce delay in milliseconds */
   debounceDelay?: number
-  /** Enable caching of recent searches */
-  enableCache?: boolean
-  /** Maximum cache size */
-  maxCacheSize?: number
+  /** Maximum number of recent searches kept in history */
+  maxRecentSearches?: number
 }
 
 interface UseSearchReturn {
@@ -36,7 +34,14 @@ interface UseSearchReturn {
 /**
  * Custom hook for search functionality
  * Connects to Rust backend via Tauri invoke
- * Implements debouncing, caching, and pagination
+ * Implements debouncing and pagination.
+ *
+ * NOTE: This hook previously cached search results in memory by query
+ * string. That cache was removed: entries created/updated/deleted after a
+ * search would not appear in subsequent searches of the same query (the
+ * cache served stale results), while the database preview — which always
+ * reads fresh from SQLite — showed them. Local FTS queries are fast enough
+ * that caching is unnecessary; the debounce already limits query rate.
  */
 export function useSearch(
   query: string,
@@ -44,8 +49,7 @@ export function useSearch(
 ): UseSearchReturn {
   const {
     debounceDelay = 300,
-    enableCache = true,
-    maxCacheSize = 10,
+    maxRecentSearches = 10,
   } = options
 
   const [results, setResults] = useState<SearchResult[]>([])
@@ -57,21 +61,19 @@ export function useSearch(
 
   const offsetRef = useRef(0)
   const limitRef = useRef(50)
-  const cacheRef = useRef<Map<string, PaginatedResults>>(new Map())
+  const requestIdRef = useRef(0)
 
   // Load recent searches from localStorage
   useEffect(() => {
-    if (enableCache) {
-      const cached = localStorage.getItem('recentSearches')
-      if (cached) {
-        try {
-          setRecentSearches(JSON.parse(cached))
-        } catch (e) {
-          console.error('Failed to parse recent searches:', e)
-        }
+    const cached = localStorage.getItem('recentSearches')
+    if (cached) {
+      try {
+        setRecentSearches(JSON.parse(cached))
+      } catch (e) {
+        console.error('Failed to parse recent searches:', e)
       }
     }
-  }, [enableCache])
+  }, [])
 
   // Perform search
   const performSearch = useCallback(
@@ -83,64 +85,43 @@ export function useSearch(
         return
       }
 
+      // Guard against out-of-order responses from rapid re-searches
+      const requestId = ++requestIdRef.current
+
       setIsLoading(true)
       setError(null)
 
       try {
-        // Check cache first
-        const cacheKey = `${searchQuery}:${offset}`
-        if (enableCache && cacheRef.current.has(cacheKey)) {
-          const cached = cacheRef.current.get(cacheKey)!
-          setResults(offset === 0 ? cached.results : [...results, ...cached.results])
-          setTotalCount(cached.total_count)
-          setHasMore(cached.results.length === limitRef.current)
-          setIsLoading(false)
+        const response = await invoke<{
+          results: Entry[]
+          total_count: number
+          offset: number
+          limit: number
+        }>('search_entries', {
+          query: searchQuery,
+          offset,
+          limit: limitRef.current,
+        })
+
+        if (requestId !== requestIdRef.current) {
+          // A newer search has started; discard this stale response
           return
         }
 
-        // Try to invoke Tauri backend
-        let paginatedResults: PaginatedResults
-
-        try {
-          const response = await invoke<{
-            results: Entry[]
-            total_count: number
-            offset: number
-            limit: number
-          }>('search_entries', {
-            query: searchQuery,
-            offset,
-            limit: limitRef.current,
-          })
-
-          paginatedResults = {
-            results: response.results.map(entry => ({ entry, score: 1.0 })),
-            total_count: response.total_count,
-            offset: response.offset,
-            limit: response.limit,
-          }
-        } catch (tauriError) {
-          // Surface the real error instead of silently falling back to mock data
-          console.error('Search backend error:', tauriError)
-          throw tauriError
+        const paginatedResults: PaginatedResults = {
+          results: response.results.map(entry => ({ entry, score: 1.0 })),
+          total_count: response.total_count,
+          offset: response.offset,
+          limit: response.limit,
         }
 
-        // Cache results
-        if (enableCache) {
-          cacheRef.current.set(cacheKey, paginatedResults)
-          // Limit cache size
-          if (cacheRef.current.size > maxCacheSize) {
-            const firstKey = cacheRef.current.keys().next().value
-            if (firstKey) {
-              cacheRef.current.delete(firstKey)
-            }
-          }
-        }
-
-        setResults(
+        // Functional update: avoids depending on `results` state inside
+        // this callback, which previously caused an implicit re-search
+        // loop (every result change recreated the debounced effect).
+        setResults(prevResults =>
           offset === 0
             ? paginatedResults.results
-            : [...results, ...paginatedResults.results]
+            : [...prevResults, ...paginatedResults.results]
         )
         setTotalCount(paginatedResults.total_count)
         setHasMore(
@@ -149,12 +130,16 @@ export function useSearch(
         offsetRef.current = offset
       } catch (err) {
         console.error('Search failed:', err)
-        setError(err instanceof Error ? err.message : 'Search failed')
+        if (requestId === requestIdRef.current) {
+          setError(err instanceof Error ? err.message : 'Search failed')
+        }
       } finally {
-        setIsLoading(false)
+        if (requestId === requestIdRef.current) {
+          setIsLoading(false)
+        }
       }
     },
-    [results, enableCache, maxCacheSize]
+    []
   )
 
   // Debounced search effect
@@ -169,20 +154,19 @@ export function useSearch(
 
   // Add to recent searches
   useEffect(() => {
-    if (query.trim() && results.length > 0 && enableCache) {
+    if (query.trim() && results.length > 0) {
       const recent = [
         query,
         ...recentSearches.filter(s => s !== query),
-      ].slice(0, maxCacheSize)
+      ].slice(0, maxRecentSearches)
 
       setRecentSearches(recent)
       localStorage.setItem('recentSearches', JSON.stringify(recent))
     }
-  }, [query, results, enableCache, recentSearches, maxCacheSize])
+  }, [query, results, recentSearches, maxRecentSearches])
 
-  // Refresh current search — clears cache to ensure fresh results
+  // Refresh current search
   const refresh = useCallback(async () => {
-    cacheRef.current.clear()
     offsetRef.current = 0
     await performSearch(query, 0)
   }, [query, performSearch])
@@ -197,6 +181,7 @@ export function useSearch(
 
   // Clear search
   const clearSearch = useCallback(() => {
+    requestIdRef.current++
     setResults([])
     setTotalCount(0)
     setHasMore(false)
