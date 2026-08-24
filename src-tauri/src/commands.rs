@@ -15,8 +15,7 @@ use crate::notifications::{
 use crate::protocol::{parse_deep_link, ProtocolAction, ProtocolRequest};
 use rusqlite::OptionalExtension;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, State};
-use tauri::webview::{WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use crate::models::Entry;
 
