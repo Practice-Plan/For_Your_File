@@ -1782,8 +1782,7 @@ pub fn rebuild_fts_index(app_handle: AppHandle) -> Result<usize, String> {
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
 
-    // Drop existing triggers (they will be recreated by init_database on next startup,
-    // but we recreate them here too for immediate effect)
+    // Drop existing triggers (they will be recreated below with FTS command form)
     conn.execute("DROP TRIGGER IF EXISTS entries_ai", [])
         .map_err(|e| format!("Failed to drop trigger entries_ai: {}", e))?;
     conn.execute("DROP TRIGGER IF EXISTS entries_ad", [])
@@ -1811,7 +1810,10 @@ pub fn rebuild_fts_index(app_handle: AppHandle) -> Result<usize, String> {
     )
     .map_err(|e| format!("Failed to recreate entries_fts: {}", e))?;
 
-    // Rebuild the FTS index from existing entries
+    // Rebuild the FTS index from existing entries by directly inserting
+    // content by column name. FTS5 has no 'insert' command form for
+    // external-content tables; `INSERT INTO ft(ft) VALUES('insert', $id)`
+    // is INVALID syntax and raises "2 values for 1 columns".
     let count: usize = conn
         .execute(
             r#"
@@ -1822,12 +1824,22 @@ pub fn rebuild_fts_index(app_handle: AppHandle) -> Result<usize, String> {
         )
         .map_err(|e| format!("Failed to rebuild FTS index: {}", e))?;
 
-    // Recreate triggers
+    // Recreate triggers following the official SQLite FTS5 external-content
+    // table pattern (https://www.sqlite.org/fts5.html#external_content_tables).
+    //
+    // Per the docs, the 'delete' command form requires ALL columns to be
+    // specified, not just the rowid:
+    //   INSERT INTO ft(ft, rowid, col1, col2, ...) VALUES('delete', $rowid, $old1, $old2, ...);
+    //
+    // - INSERT trigger: direct column insertion (FTS5 has no 'insert' command).
+    // - DELETE trigger: 'delete' command with ALL columns.
+    // - UPDATE trigger: 'delete' the old row (with all old column values),
+    //   then insert the new row by column name.
     conn.execute(
         r#"
         CREATE TRIGGER entries_ai AFTER INSERT ON entries BEGIN
             INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
-            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes)
+            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes);
         END
         "#,
         [],
@@ -1838,7 +1850,7 @@ pub fn rebuild_fts_index(app_handle: AppHandle) -> Result<usize, String> {
         r#"
         CREATE TRIGGER entries_ad AFTER DELETE ON entries BEGIN
             INSERT INTO entries_fts(entries_fts, rowid, lnk_path, target_path, description, tags, notes)
-            VALUES ('delete', old.id, old.lnk_path, old.target_path, old.description, old.tags, old.notes)
+            VALUES ('delete', old.id, old.lnk_path, old.target_path, old.description, old.tags, old.notes);
         END
         "#,
         [],
@@ -1851,7 +1863,7 @@ pub fn rebuild_fts_index(app_handle: AppHandle) -> Result<usize, String> {
             INSERT INTO entries_fts(entries_fts, rowid, lnk_path, target_path, description, tags, notes)
             VALUES ('delete', old.id, old.lnk_path, old.target_path, old.description, old.tags, old.notes);
             INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
-            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes)
+            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes);
         END
         "#,
         [],

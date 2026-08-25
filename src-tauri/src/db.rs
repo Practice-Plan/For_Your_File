@@ -125,12 +125,36 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
 
     // --- FTS5 Triggers ---
     // Keep the FTS index in sync with the entries table.
-    // All triggers include `description` so name changes are reflected in search.
+    //
+    // For external-content FTS5 tables (content='entries'), we follow the
+    // official SQLite FTS5 documentation's recommended trigger pattern
+    // (https://www.sqlite.org/fts5.html#external_content_tables):
+    //
+    //   - INSERT trigger: direct column insertion (FTS5 has no 'insert'
+    //     command form for external-content tables).
+    //   - DELETE trigger: use the 'delete' command form, which requires ALL
+    //     columns to be specified (not just the rowid):
+    //       INSERT INTO ft(ft, rowid, col1, col2, ...) VALUES('delete', $rowid, $old1, $old2, ...);
+    //   - UPDATE trigger: 'delete' the old row (with all old column values),
+    //     then insert the new row by column name.
+    //
+    // IMPORTANT: We DROP existing triggers before creating them (instead of
+    // using `CREATE TRIGGER IF NOT EXISTS`). This ensures old, broken
+    // trigger definitions (from previous app versions that used the invalid
+    // `'insert'` command form or omitted column values in the 'delete'
+    // command) are always replaced with the correct syntax.
+    conn.execute("DROP TRIGGER IF EXISTS entries_ai", [])
+        .map_err(|e| format!("Failed to drop trigger entries_ai: {}", e))?;
+    conn.execute("DROP TRIGGER IF EXISTS entries_ad", [])
+        .map_err(|e| format!("Failed to drop trigger entries_ad: {}", e))?;
+    conn.execute("DROP TRIGGER IF EXISTS entries_au", [])
+        .map_err(|e| format!("Failed to drop trigger entries_au: {}", e))?;
+
     conn.execute(
         r#"
-        CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
+        CREATE TRIGGER entries_ai AFTER INSERT ON entries BEGIN
             INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
-            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes)
+            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes);
         END
         "#,
         [],
@@ -139,9 +163,9 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
 
     conn.execute(
         r#"
-        CREATE TRIGGER IF NOT EXISTS entries_ad AFTER DELETE ON entries BEGIN
+        CREATE TRIGGER entries_ad AFTER DELETE ON entries BEGIN
             INSERT INTO entries_fts(entries_fts, rowid, lnk_path, target_path, description, tags, notes)
-            VALUES ('delete', old.id, old.lnk_path, old.target_path, old.description, old.tags, old.notes)
+            VALUES ('delete', old.id, old.lnk_path, old.target_path, old.description, old.tags, old.notes);
         END
         "#,
         [],
@@ -150,16 +174,63 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
 
     conn.execute(
         r#"
-        CREATE TRIGGER IF NOT EXISTS entries_au AFTER UPDATE ON entries BEGIN
+        CREATE TRIGGER entries_au AFTER UPDATE ON entries BEGIN
             INSERT INTO entries_fts(entries_fts, rowid, lnk_path, target_path, description, tags, notes)
             VALUES ('delete', old.id, old.lnk_path, old.target_path, old.description, old.tags, old.notes);
             INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
-            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes)
+            VALUES (new.id, new.lnk_path, new.target_path, new.description, new.tags, new.notes);
         END
         "#,
         [],
     )
     .map_err(|e| format!("Failed to create entries_au trigger: {}", e))?;
+
+    // --- FTS Index Repair ---
+    // If the FTS index was previously built with broken triggers (direct
+    // column form that silently failed due to PK violations), we need to
+    // re-index all existing entries from the content table.
+    // This uses the FTS command form to tell FTS5 to read from entries.
+    let fts_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM entries_fts",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let entry_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM entries",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    if fts_count != entry_count {
+        log::warn!(
+            "FTS index out of sync ({} indexed vs {} entries), rebuilding...",
+            fts_count,
+            entry_count
+        );
+        // Delete existing FTS index using the 'delete-all' command form.
+        // This is the correct FTS5 command for clearing an external-content
+        // table's index. (The previous code used 'delete' which deletes a
+        // single row, not the whole index.)
+        conn.execute("INSERT INTO entries_fts(entries_fts) VALUES('delete-all')", [])
+            .map_err(|e| format!("Failed to clear FTS index: {}", e))?;
+        // Re-index all entries by directly inserting their content into the
+        // FTS table by column name. FTS5 has no 'insert' command form for
+        // external-content tables, so we must provide the data directly.
+        conn.execute(
+            r#"
+            INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
+            SELECT id, lnk_path, target_path, description, tags, notes FROM entries
+            "#,
+            [],
+        )
+        .map_err(|e| format!("Failed to rebuild FTS index: {}", e))?;
+        log::info!("FTS index rebuilt from {} entries", entry_count);
+    }
 
     log::info!("Database initialized at {}", db_path.display());
     Ok(())
@@ -216,7 +287,9 @@ fn migrate_fts_if_needed(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| format!("Failed to recreate entries_fts: {}", e))?;
 
-    // Rebuild the FTS index from existing entries
+    // Rebuild the FTS index from existing entries by directly inserting
+    // content by column name. FTS5 has no 'insert' command form for
+    // external-content tables, so direct column insertion is required.
     conn.execute(
         r#"
         INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
