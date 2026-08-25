@@ -191,19 +191,11 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
     // re-index all existing entries from the content table.
     // This uses the FTS command form to tell FTS5 to read from entries.
     let fts_count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM entries_fts",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM entries_fts", [], |row| row.get(0))
         .unwrap_or(0);
 
     let entry_count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM entries",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM entries", [], |row| row.get(0))
         .unwrap_or(0);
 
     if fts_count != entry_count {
@@ -216,8 +208,11 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
         // This is the correct FTS5 command for clearing an external-content
         // table's index. (The previous code used 'delete' which deletes a
         // single row, not the whole index.)
-        conn.execute("INSERT INTO entries_fts(entries_fts) VALUES('delete-all')", [])
-            .map_err(|e| format!("Failed to clear FTS index: {}", e))?;
+        conn.execute(
+            "INSERT INTO entries_fts(entries_fts) VALUES('delete-all')",
+            [],
+        )
+        .map_err(|e| format!("Failed to clear FTS index: {}", e))?;
         // Re-index all entries by directly inserting their content into the
         // FTS table by column name. FTS5 has no 'insert' command form for
         // external-content tables, so we must provide the data directly.
