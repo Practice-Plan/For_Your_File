@@ -1,6 +1,6 @@
-# LNK File Management Center
+<img src="./social-preview.svg" alt="icon Logo" width="3000" height="400" style="border-radius: 12px;">
 
-<img src="./social-preview.svg" alt="icon Logo" width="1500" height="150" style="border-radius: 12px;">
+# LNK File Management Center
 
 > 一个现代化的 Windows LNK 快捷方式管理桌面应用，基于 Tauri 2.0 构建。
 

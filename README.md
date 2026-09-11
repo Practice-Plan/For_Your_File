@@ -1,4 +1,4 @@
-<img src="./social-preview.svg" alt="icon Logo" width="2500" height="400" style="border-radius: 12px;">
+<img src="./social-preview.svg" alt="icon Logo" width="3000" height="400" style="border-radius: 12px;">
 
 # LNK File Management Center
 

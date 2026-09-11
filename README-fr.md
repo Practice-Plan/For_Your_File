@@ -1,6 +1,6 @@
-# Centre de gestion des raccourcis LNK
+<img src="./social-preview.svg" alt="icon Logo" width="3000" height="400" style="border-radius: 12px;">
 
-<img src="./social-preview.svg" alt="icon Logo" width="1500" height="150" style="border-radius: 12px;">
+# Centre de gestion des raccourcis LNK
 
 > Une application de bureau moderne pour gérer les raccourcis Windows .lnk, construite avec Tauri 2.0.
 

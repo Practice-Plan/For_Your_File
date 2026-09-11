@@ -1,6 +1,6 @@
-# Центр управления ярлыками LNK
+<img src="./social-preview.svg" alt="icon Logo" width="3000" height="400" style="border-radius: 12px;">
 
-<img src="./social-preview.svg" alt="icon Logo" width="1500" height="150" style="border-radius: 12px;">
+# Центр управления ярлыками LNK
 
 > Современное настольное приложение для управления ярлыками Windows .lnk, созданное на Tauri 2.0.
 

@@ -1,8 +1,8 @@
+<img src="./social-preview.svg" alt="icon Logo" width="3000" height="400" style="border-radius: 12px;">
+
 <div dir="rtl">
 
 # مركز إدارة اختصارات LNK
-
-<img src="./social-preview.svg" alt="icon Logo" width="1500" height="150" style="border-radius: 12px;">
 
 > تطبيق سطح مكتب حديث لإدارة اختصارات Windows .lnk، مبني على Tauri 2.0.
 
