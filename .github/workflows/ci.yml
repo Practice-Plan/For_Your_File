@@ -35,7 +35,7 @@ jobs:
           $packageVersion = (Get-Content package.json | ConvertFrom-Json).version
           $cargoVersion = (Select-String -Path src-tauri/Cargo.toml -Pattern '^version = "([^"]+)"$').Matches.Groups[1].Value
           $tauriVersion = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
-          if ($packageVersion -ne '0.0.3' -or $cargoVersion -ne '0.0.3' -or $tauriVersion -ne '0.0.3') { throw "Release versions are not synchronized" }
+          if ($packageVersion -ne '0.0.4' -or $cargoVersion -ne '0.0.4' -or $tauriVersion -ne '0.0.4') { throw "Release versions are not synchronized" }
 
       - name: Type-check frontend
         run: npm run type-check

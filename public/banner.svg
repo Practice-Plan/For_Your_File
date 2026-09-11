@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" role="img" aria-label="For_Your_File banner">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B1220"/>
+      <stop offset="60%" stop-color="#0E1E3A"/>
+      <stop offset="100%" stop-color="#10314F"/>
+    </linearGradient>
+    <radialGradient id="nebula" cx="82%" cy="20%" r="60%">
+      <stop offset="0%" stop-color="#2E9BFF" stop-opacity="0.35"/>
+      <stop offset="55%" stop-color="#00C8E0" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#00C8E0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tileGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1D6BFF"/>
+      <stop offset="55%" stop-color="#2E9BFF"/>
+      <stop offset="100%" stop-color="#00C8E0"/>
+    </linearGradient>
+    <linearGradient id="tileShine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.28"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="arrowGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="docShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#0A2A66" flood-opacity="0.45"/>
+    </filter>
+    <linearGradient id="taglineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9BD4FF"/>
+      <stop offset="100%" stop-color="#5FE8F5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="1280" height="360" rx="28" fill="url(#bg)"/>
+  <rect width="1280" height="360" rx="28" fill="url(#nebula)"/>
+
+  <!-- 星点 -->
+  <g fill="#FFFFFF">
+    <circle cx="980" cy="52"  r="2.5" opacity="0.7"/>
+    <circle cx="1080" cy="120" r="2"   opacity="0.5"/>
+    <circle cx="1180" cy="60"  r="3"   opacity="0.8"/>
+    <circle cx="1230" cy="180" r="2"   opacity="0.4"/>
+    <circle cx="900"  cy="300" r="2"   opacity="0.45"/>
+    <circle cx="1050" cy="270" r="2.5" opacity="0.6"/>
+    <circle cx="1160" cy="320" r="2"   opacity="0.35"/>
+    <circle cx="60"   cy="40"  r="2"   opacity="0.4"/>
+    <circle cx="150"  cy="320" r="2"   opacity="0.3"/>
+    <circle cx="1240" cy="300" r="2.5" opacity="0.5"/>
+  </g>
+
+  <!-- Logo（缩放 220/512 ≈ 0.43，置于左侧） -->
+  <g transform="translate(84, 70) scale(0.43)">
+    <rect x="16" y="16" width="480" height="480" rx="116" fill="url(#tileGrad)"/>
+    <rect x="16" y="16" width="480" height="480" rx="116" fill="url(#tileShine)"/>
+    <rect x="16" y="16" width="480" height="480" rx="116" fill="none" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="4"/>
+    <g filter="url(#docShadow)">
+      <rect x="150" y="118" width="200" height="262" rx="26" fill="#FFFFFF"/>
+    </g>
+    <rect x="190" y="170" width="120" height="18" rx="9" fill="#2E7CD6"/>
+    <rect x="190" y="212" width="120" height="18" rx="9" fill="#2E7CD6" fill-opacity="0.75"/>
+    <rect x="190" y="254" width="120" height="18" rx="9" fill="#2E7CD6" fill-opacity="0.5"/>
+    <rect x="190" y="296" width="78"  height="18" rx="9" fill="#2E7CD6" fill-opacity="0.35"/>
+    <g transform="rotate(45 280 240)" filter="url(#arrowGlow)">
+      <rect x="265" y="185" width="30" height="125" rx="15" fill="#FFFFFF"/>
+      <path d="M 232 196 L 328 196 L 280 108 Z" fill="#FFFFFF"/>
+    </g>
+    <circle cx="392" cy="104" r="10" fill="#FFFFFF" opacity="0.9"/>
+    <circle cx="420" cy="140" r="5"  fill="#FFFFFF" opacity="0.55"/>
+    <circle cx="368" cy="76"  r="4"  fill="#FFFFFF" opacity="0.45"/>
+  </g>
+
+  <!-- 文字区 -->
+  <text x="372" y="128" font-family="Carlito, Segoe UI, Arial" font-size="27" letter-spacing="7" fill="#7FD8FF">LNK FILE MANAGEMENT CENTER</text>
+  <text x="368" y="208" font-family="Carlito, Segoe UI, Arial" font-weight="bold" font-size="86" fill="#FFFFFF">For_Your_File</text>
+  <text x="372" y="262" font-family="Carlito, Segoe UI, Arial" font-size="28" fill="url(#taglineGrad)">For your files, it's made for managing your file better.</text>
+
+</svg>

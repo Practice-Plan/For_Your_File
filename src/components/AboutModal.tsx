@@ -19,7 +19,7 @@ interface AboutModalProps {
 
 export function AboutModal({ isOpen, onClose }: AboutModalProps) {
   const { t } = useTranslation()
-  const [version, setVersion] = useState<string>('0.0.1')
+  const [version, setVersion] = useState<string>('0.0.4')
 
   useEffect(() => {
     if (isOpen) {
@@ -27,7 +27,7 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
         .then(setVersion)
         .catch(err => {
           console.error('Failed to get app version:', err)
-          setVersion('0.0.2')
+          setVersion('0.0.4')
         })
     }
   }, [isOpen])
@@ -56,13 +56,32 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
             className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
           >
             <div className="pointer-events-auto max-w-sm w-full mx-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
-              {/* Header with icon */}
-              <div className="bg-gradient-to-tr from-blue-500 to-orange-500 px-6 py-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <img src="/app-icon.png" alt="" className="w-12 h-12 rounded-xl object-contain" />
+              {/* Header with banner image */}
+              <div className="relative px-6 py-8 text-center overflow-hidden">
+                <img
+                  src="/banner.png"
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to SVG or gradient if PNG fails
+                    const target = e.currentTarget as HTMLImageElement
+                    if (!target.src.endsWith('.svg')) {
+                      target.src = '/banner.svg'
+                    } else {
+                      // Final fallback: apply gradient via inline style
+                      target.style.display = 'none'
+                      target.parentElement!.style.background = 'linear-gradient(to top right, #3b82f6, #f97316)'
+                    }
+                  }}
+                />
+                <div className="absolute inset-0 bg-black/40" />
+                <div className="relative z-10">
+                  <div className="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                    <img src="/app-icon.png" alt="" className="w-12 h-12 rounded-xl object-contain" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-white drop-shadow">{t('app.name')}</h2>
+                  <p className="text-sm text-white/80 mt-1">v{version}</p>
                 </div>
-                <h2 className="text-xl font-semibold text-white">{t('app.name')}</h2>
-                <p className="text-sm text-primary-100 mt-1">v{version}</p>
               </div>
 
               {/* Body */}

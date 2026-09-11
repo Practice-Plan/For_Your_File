@@ -1,4 +1,4 @@
-import { useEffect, useState, startTransition } from 'react'
+import { useEffect, useState, useRef, useCallback, startTransition } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -25,6 +25,7 @@ type ProgressEvent = {
 const tables: TableName[] = ['entries', 'groups', 'entry_groups']
 const batchSize = 200
 const maxRenderedRows = 1000
+const maxRowsPerPage = 5000 // safety ceiling to prevent OOM
 
 export function DatabasePreview() {
   const { t } = useTranslation()
@@ -37,9 +38,22 @@ export function DatabasePreview() {
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadErrorCount, setLoadErrorCount] = useState(0)
+
+  // Guard: prevent overlapping requests and stale responses from racing.
+  const activeRequestId = useRef(0)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     const unlisten = listen<ProgressEvent>('database-preview-progress', (event) => {
+      if (!mountedRef.current) return
       if (event.payload.table === activeTable) {
         setLoaded(event.payload.loaded)
         setTotal(event.payload.total)
@@ -50,7 +64,8 @@ export function DatabasePreview() {
     }
   }, [activeTable])
 
-  const loadTable = async (table: TableName, nextOffset = 0) => {
+  const loadTable = useCallback(async (table: TableName, nextOffset = 0) => {
+    if (isLoading) return // prevent overlapping
     setIsLoading(true)
     setError(null)
     setRows([])
@@ -58,35 +73,60 @@ export function DatabasePreview() {
     setLoaded(0)
     setTotal(0)
 
+    const requestId = ++activeRequestId.current
+
     try {
       const batch = await invoke<DatabasePreviewBatch>('get_database_preview_batch', {
         table,
         offset: nextOffset,
         limit: batchSize,
       })
+
+      // Stale response guard: ignore results from superseded requests.
+      if (!mountedRef.current || requestId !== activeRequestId.current) return
+
       setColumns(batch.columns)
       setTotal(batch.total_count)
       setOffset(batch.offset)
       setLoaded(batch.offset + batch.rows.length)
       setHasMore(batch.has_more)
-      startTransition(() => setRows(batch.rows))
+
+      // Memory safety: cap the number of rows we keep in state.
+      const cappedRows = batch.rows.length > maxRowsPerPage
+        ? batch.rows.slice(0, maxRowsPerPage)
+        : batch.rows
+      startTransition(() => setRows(cappedRows))
     } catch (err) {
-      setError(String(err))
+      if (!mountedRef.current || requestId !== activeRequestId.current) return
+      const errMsg = String(err)
+      setError(errMsg)
+      setLoadErrorCount((c) => c + 1)
+      // Clear rows on error so the UI doesn't show stale data
+      setRows([])
     } finally {
-      setIsLoading(false)
+      if (mountedRef.current && requestId === activeRequestId.current) {
+        setIsLoading(false)
+      }
     }
-  }
+  }, [isLoading])
 
   useEffect(() => {
     void loadTable(activeTable)
-  }, [activeTable])
+  }, [activeTable, loadTable])
 
   const closeWindow = () => {
     void getCurrentWindow().close()
   }
 
+  // Retry: reset error count and reload
+  const handleRetry = () => {
+    setLoadErrorCount(0)
+    void loadTable(activeTable, offset)
+  }
+
   const progress = total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : isLoading ? 0 : 100
   const visibleRows = rows.slice(0, maxRenderedRows)
+  const isRecoverable = loadErrorCount < 3 // suggest retry up to 3 times
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100">
@@ -124,10 +164,16 @@ export function DatabasePreview() {
 
       {error ? (
         <div className="m-4 p-4 rounded border border-red-200 bg-red-50 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200">
-          <p>{t('databasePreview.error')}: {error}</p>
-          <button onClick={() => void loadTable(activeTable)} className="mt-3 px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700">
-            {t('common.retry', '重试')}
-          </button>
+          <p className="font-medium">{t('databasePreview.error')}: {error}</p>
+          {isRecoverable ? (
+            <button onClick={handleRetry} className="mt-3 px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700 transition-colors">
+              {t('common.retry', 'Retry')}
+            </button>
+          ) : (
+            <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+              {t('databasePreview.tooManyRetries', 'Too many retries. Close and reopen the window to try again.')}
+            </p>
+          )}
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-auto p-4">
@@ -160,17 +206,17 @@ export function DatabasePreview() {
             <button
               disabled={offset === 0 || isLoading}
               onClick={() => void loadTable(activeTable, Math.max(0, offset - batchSize))}
-              className="px-3 py-1.5 rounded border border-gray-200 disabled:opacity-40 dark:border-dark-border"
+              className="px-3 py-1.5 rounded border border-gray-200 disabled:opacity-40 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
-              上一页
+              {t('databasePreview.previous')}
             </button>
-            <span className="text-gray-500">{offset + 1}-{Math.min(offset + rows.length, total)} / {total}</span>
+            <span className="text-gray-500 dark:text-gray-400">{offset + 1}-{Math.min(offset + rows.length, total)} / {total}</span>
             <button
               disabled={!hasMore || isLoading}
               onClick={() => void loadTable(activeTable, offset + rows.length)}
-              className="px-3 py-1.5 rounded border border-gray-200 disabled:opacity-40 dark:border-dark-border"
+              className="px-3 py-1.5 rounded border border-gray-200 disabled:opacity-40 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
-              下一页
+              {t('databasePreview.next')}
             </button>
           </div>
         </div>

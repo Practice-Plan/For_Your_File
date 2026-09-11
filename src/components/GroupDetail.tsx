@@ -180,7 +180,21 @@ export function GroupDetail({
 
                     {/* Entry info */}
                     <button
-                      onClick={() => onOpenEntry(entry)}
+                      onClick={(e) => {
+                        if (e.ctrlKey || e.metaKey) {
+                          // Ctrl+click: toggle multi-select
+                          e.preventDefault()
+                          if (entry.id) onToggleEntrySelection(entry.id)
+                        } else {
+                          // Normal click: open entry
+                          onOpenEntry(entry)
+                        }
+                      }}
+                      onDoubleClick={(e) => {
+                        // Double-click: open entry directly
+                        e.preventDefault()
+                        onOpenEntry(entry)
+                      }}
                       className="flex-1 text-left"
                     >
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">

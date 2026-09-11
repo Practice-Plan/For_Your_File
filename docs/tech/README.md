@@ -153,6 +153,7 @@ LNK File Management Center provides a safe and intelligent way to manage Windows
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.0.4 | 2026-09 | PPC 32-bit support, Try-Launch-Try connect flow, PPC error window via TCP, group context menu, Ctrl+click multi-select, Enter key rules, save confirmation dialog, FTS5 trigger fix, dark theme support for DatabasePreview, banner image in About |
 | 0.0.3 | 2026-08 | Added database preview with bounded pagination and real loading progress |
 | 0.1.0 | 2026-07 | Initial release |
 

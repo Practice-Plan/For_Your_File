@@ -36,18 +36,28 @@ export function GroupItem({
 
   const groupId = group.id
 
+  const openMenuAt = (top: number, left: number) => {
+    const menuWidth = 140
+    setMenuPos({
+      top: Math.min(top, window.innerHeight - 120),
+      left: Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8)),
+    })
+    setShowMenu(true)
+  }
+
   const openMenu = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (menuBtnRef.current) {
       const rect = menuBtnRef.current.getBoundingClientRect()
-      // Position dropdown below the button, aligned to its right edge.
-      // Clamp left so the menu doesn't go off-screen.
-      const menuWidth = 120
-      const left = Math.max(8, rect.right - menuWidth)
-      const top = rect.bottom + 4
-      setMenuPos({ top, left })
+      openMenuAt(rect.bottom + 4, rect.right - 120)
     }
-    setShowMenu(true)
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    onSelect(group.id!)
+    openMenuAt(e.clientY + 4, e.clientX + 4)
   }
 
   // Close menu on Escape or scroll
@@ -79,6 +89,7 @@ export function GroupItem({
         }
       `}
       onClick={() => onSelect(group.id!)}
+      onContextMenu={handleContextMenu}
       onDragOver={(e) => {
         e.preventDefault()
         e.dataTransfer.dropEffect = 'link'
@@ -135,7 +146,7 @@ export function GroupItem({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 50 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[140px]"
               >
                 <button
                   onClick={(e) => {

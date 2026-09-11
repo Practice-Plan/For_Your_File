@@ -27,7 +27,6 @@ interface SearchResultItemProps {
   isSelected?: boolean
   isMultiSelected?: boolean
   onClick?: (e: React.MouseEvent) => void
-  onDoubleClick?: () => void
 }
 
 /**
@@ -70,7 +69,6 @@ export function SearchResultItem({
   isSelected = false,
   isMultiSelected = false,
   onClick,
-  onDoubleClick,
 }: SearchResultItemProps) {
   const tagsArray = parseTags(tags)
   const frequencyInfo = formatFrequency(frequency)
@@ -128,7 +126,6 @@ export function SearchResultItem({
             : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}
       `}
       onClick={onClick}
-      onDoubleClick={onDoubleClick}
       role="option"
       aria-selected={isSelected || isMultiSelected}
       data-id={id}

@@ -248,7 +248,6 @@ export function SearchResults({
                     onItemSelect(result)
                   }
                 }}
-                onDoubleClick={() => onItemOpen(result)}
               />
             </div>
           )

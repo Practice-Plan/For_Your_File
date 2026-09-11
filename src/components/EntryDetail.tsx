@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEntry } from '../hooks/useEntry'
@@ -21,6 +21,7 @@ export function EntryDetail({ entryId, onClose, onUpdate, onDelete }: EntryDetai
   const [isEditing, setIsEditing] = useState(false)
   const [editedFields, setEditedFields] = useState<Partial<Entry>>({})
   const deleteModal = useModalWithKeyboard(false)
+  const saveConfirmModal = useModalWithKeyboard(false)
 
   useEffect(() => {
     if (entry) {
@@ -29,13 +30,26 @@ export function EntryDetail({ entryId, onClose, onUpdate, onDelete }: EntryDetai
     }
   }, [entry])
 
+  const hasChanges = Object.keys(editedFields).length > 0
+
+  // Handle Enter key behavior:
+  // - In textarea (notes): Enter = newline (default)
+  // - In regular input fields: Enter = save (when changes exist)
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && hasChanges && isEditing) {
+      e.preventDefault()
+      saveConfirmModal.open()
+    }
+  }, [hasChanges, isEditing, saveConfirmModal])
+
   const handleSave = async () => {
-    if (!entry || Object.keys(editedFields).length === 0) return
+    if (!entry || !hasChanges) return
 
     try {
       await updateEntry(editedFields)
       setIsEditing(false)
       setEditedFields({})
+      saveConfirmModal.close()
       onUpdate?.()
     } catch (err) {
       console.error('Failed to save entry:', err)
@@ -178,6 +192,7 @@ export function EntryDetail({ entryId, onClose, onUpdate, onDelete }: EntryDetai
                             type="text"
                             value={editedFields.parameters ?? entry.parameters ?? ''}
                             onChange={e => setEditedFields({ ...editedFields, parameters: e.target.value })}
+                            onKeyDown={handleInputKeyDown}
                             className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-primary-500 text-sm"
                           />
                         ) : (
@@ -199,6 +214,7 @@ export function EntryDetail({ entryId, onClose, onUpdate, onDelete }: EntryDetai
                             type="text"
                             value={editedFields.working_dir ?? entry.working_dir ?? ''}
                             onChange={e => setEditedFields({ ...editedFields, working_dir: e.target.value })}
+                            onKeyDown={handleInputKeyDown}
                             className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-primary-500 text-sm"
                           />
                         ) : (
@@ -298,8 +314,8 @@ export function EntryDetail({ entryId, onClose, onUpdate, onDelete }: EntryDetai
                           </button>
                         )}
                         <button
-                          onClick={handleSave}
-                          disabled={!isEditing || Object.keys(editedFields).length === 0}
+                          onClick={() => saveConfirmModal.open()}
+                          disabled={!isEditing || !hasChanges}
                           className="px-4 py-2 text-sm bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           {t('entry.saveChanges')}
@@ -322,6 +338,49 @@ export function EntryDetail({ entryId, onClose, onUpdate, onDelete }: EntryDetai
         message={t('entry.deleteConfirm')}
         itemName={entry?.lnk_path}
       />
+
+      {/* Save Confirmation Modal */}
+      <AnimatePresence>
+        {saveConfirmModal.isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center"
+            onClick={saveConfirmModal.close}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                {t('entry.saveConfirmTitle')}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-5">
+                {t('entry.saveConfirmMessage')}
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={saveConfirmModal.close}
+                  className="px-4 py-2 text-sm bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                >
+                  {t('entry.cancel')}
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="px-4 py-2 text-sm bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors"
+                >
+                  {t('entry.saveChanges')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   )
 }

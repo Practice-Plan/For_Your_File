@@ -1,13 +1,13 @@
 # LNK File Management Center
 
-<img src="src-tauri/icons/Square89x89Logo.png" alt="icon Logo" width="80" height="80" style="border-radius: 12px;">
+<img src="./social-preview.svg" alt="icon Logo" width="1500" height="150" style="border-radius: 12px;">
 
 > A modern Windows desktop app for managing LNK shortcut files, built with Tauri 2.0.
 
 [中文](README-zh.md) | English | [Français](README-fr.md) | [Русский](README-ru.md) | [العربية](README-ar.md)
 
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
-![Version](https://img.shields.io/badge/Version-0.0.3-green.svg)
+![Version](https://img.shields.io/badge/Version-0.0.4-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6.svg)
 ![Rust](https://img.shields.io/badge/Rust-1.77.2+-orange.svg)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933.svg)
