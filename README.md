@@ -1,6 +1,6 @@
 # LNK File Management Center
 
-<img src="./social-preview.svg" alt="icon Logo" width="1500" height="150" style="border-radius: 12px;">
+<img src="./social-preview.svg" alt="icon Logo" width="3000" height="800" style="border-radius: 12px;">
 
 > A modern Windows desktop app for managing LNK shortcut files, built with Tauri 2.0.
 
