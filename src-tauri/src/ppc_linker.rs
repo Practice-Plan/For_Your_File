@@ -532,38 +532,32 @@ fn find_installed_ppc() -> Option<std::path::PathBuf> {
     candidates.into_iter().find(|p| p.is_file())
 }
 
-/// Launch the per-user PPC through Explorer, matching a user double-click.
-/// Explorer honors the executable's UAC manifest and presents elevation when
-/// required; the application does not spawn or own the PPC process.
+/// Launch the per-user PPC as a hidden background process.
+/// Uses CREATE_NO_WINDOW (0x08000000) so the PPC console/taskbar window
+/// never appears — PPC runs silently in the background just for its TCP
+/// server. The app does not own the PPC process; PPC is per-user shared.
 #[cfg(windows)]
 fn launch_installed_ppc_as_user() -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+
     let executable = find_installed_ppc().ok_or_else(|| {
         "PPC executable not found at %APPDATA%\\wang.station\\ppc.exe or ppc32.exe".to_string()
     })?;
-    let executable = executable.to_string_lossy().replace('"', "''");
-    let script = format!(
-        "$path = '{}'; Start-Process -FilePath 'explorer.exe' -ArgumentList ('\"' + $path + '\"')",
-        executable
-    );
 
     log::info!(
-        "Starting per-user PPC through Explorer via PowerShell: {}",
-        executable
+        "Starting PPC in background (hidden window): {}",
+        executable.display()
     );
-    std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-Command", &script])
-        .status()
-        .map_err(|e| format!("Failed to invoke PowerShell for PPC: {}", e))
-        .and_then(|status| {
-            if status.success() {
-                Ok(())
-            } else {
-                Err(format!(
-                    "PowerShell failed to start PPC (exit code {})",
-                    status
-                ))
-            }
-        })
+
+    // CREATE_NO_WINDOW = 0x08000000
+    // Do NOT use start() — we need to spawn and detach without waiting
+    // for PPC to finish (it's a long-running server).
+    std::process::Command::new(&executable)
+        .creation_flags(0x08000000)
+        .spawn()
+        .map_err(|e| format!("Failed to spawn PPC: {}", e))?;
+
+    Ok(())
 }
 
 /// Send a WINDOW ERROR command to PPC to show a native error dialog.
@@ -634,7 +628,9 @@ pub fn show_ppc_warn_window(message: &str) -> bool {
 }
 
 /// Wait for a TCP port to become connectable, polling at a fixed interval.
-/// Returns Ok(()) if the port becomes available within `timeout_secs`.
+/// Returns true if the port becomes available within `timeout_secs`.
+/// Returns false only when the deadline expires — failures inside the loop
+/// are treated as transient and retried until timeout.
 fn wait_for_port(host: &str, port: u16, timeout_secs: u64) -> bool {
     let addr = format!("{}:{}", host, port);
     let deadline = std::time::Instant::now() + Duration::from_secs(timeout_secs);
@@ -649,11 +645,16 @@ fn wait_for_port(host: &str, port: u16, timeout_secs: u64) -> bool {
             drop(stream);
             return true;
         }
-        std::thread::sleep(Duration::from_millis(500));
+        std::thread::sleep(Duration::from_millis(1000));
     }
 
     false
 }
+
+/// Duration to keep retrying PPC connection before giving up (5 minutes).
+/// This covers slow machines where PPC startup can take a while, or
+/// cases where the machine is under heavy load.
+const PPC_CONNECT_TIMEOUT_SECS: u64 = 300;
 
 // ---------------------------------------------------------------------------
 // Tauri commands
@@ -661,21 +662,17 @@ fn wait_for_port(host: &str, port: u16, timeout_secs: u64) -> bool {
 
 /// Connect to PPC with auto-launch using the Try-Launch-Try pattern.
 ///
-/// Flow:
-///   1. Try ping PPC (once, quick — 2s timeout)
+/// Flow (持续重试 5 分钟, 每 1 秒一次):
+///   1. Try ping PPC (quick — 2s timeout)
 ///   2. If reachable → proceed to version check → register → authenticate
-///   3. If not reachable → launch PPC via Explorer → wait up to 10s for port
-///   4. After launch, try ping again (up to 3 attempts to account for slow startup)
-///   5. If still not reachable → show error window and fail
+///   3. If not reachable → launch PPC in background (CREATE_NO_WINDOW)
+///   4. Wait up to 5 minutes for port to become available, retrying every 1s
+///   5. If 5 minutes elapses → error out with final diagnostic
 ///   6. If reachable now → proceed with version check → register → authenticate
 ///
-/// Connection auto-retry: if a connection succeeds but later breaks, the
-/// next call to ppc_connect_auto will re-attempt from step 1 (which may
-/// auto-launch again if PPC exited).
-///
-/// MUST be async: this command sleeps, spawns PowerShell, and waits for the
-/// PPC port. Synchronous commands run on the main thread in Tauri v2, so a
-/// sync version here freezes the whole UI.
+/// MUST be async: this command launches PPC and waits up to 5 minutes for
+/// it to come up. Synchronous commands run on the main thread in Tauri v2,
+/// so a sync version here freezes the whole UI.
 #[tauri::command]
 pub async fn ppc_connect_auto(
     app_handle: tauri::AppHandle,
@@ -686,8 +683,8 @@ pub async fn ppc_connect_auto(
     let first_try = ping_ppc().unwrap_or(false);
 
     let launched = if !first_try {
-        // ── Step 2: Launch PPC ────────────────────────────────────────
-        log::warn!("PPC not reachable on first try; launching PPC...");
+        // ── Step 2: Launch PPC in background (hidden window) ──────────
+        log::warn!("PPC not reachable on first try; launching PPC in background...");
 
         #[cfg(windows)]
         {
@@ -697,15 +694,23 @@ pub async fn ppc_connect_auto(
                 session.connected = false;
                 session.status_message = e.clone();
                 session.last_error_code = Some("0x10017".to_string());
-                // Try PPC error window first, fall back to dialog
                 if !show_ppc_error_window(&e) {
                     show_ppc_warning_dialog(&app_handle, &e);
                 }
                 return Err(e);
             }
-            // Wait for PPC to start up (port become available)
-            if !wait_for_port(PPC_HOST, PPC_PORT, 10) {
-                let err_msg = "PPC launched but did not become reachable within 10s".to_string();
+
+            // ── Step 3: Persistent retry loop — up to 5 minutes ──────────
+            log::info!(
+                "Waiting up to {}s for PPC to become reachable...",
+                PPC_CONNECT_TIMEOUT_SECS
+            );
+            if !wait_for_port(PPC_HOST, PPC_PORT, PPC_CONNECT_TIMEOUT_SECS) {
+                let err_msg = format!(
+                    "PPC launched but did not become reachable within {}s ({}min). Check PPC logs.",
+                    PPC_CONNECT_TIMEOUT_SECS,
+                    PPC_CONNECT_TIMEOUT_SECS / 60
+                );
                 log::error!("{}", err_msg);
                 let mut session = state.session.lock().map_err(|e| e.to_string())?;
                 session.connected = false;
@@ -716,6 +721,7 @@ pub async fn ppc_connect_auto(
                 }
                 return Err(err_msg);
             }
+            log::info!("PPC is reachable after launch (within {}s)", PPC_CONNECT_TIMEOUT_SECS);
             true
         }
 
@@ -736,39 +742,9 @@ pub async fn ppc_connect_auto(
             return Err(err_msg);
         }
     } else {
+        log::info!("PPC was already reachable on first try");
         false
     };
-
-    // ── Step 3: Second try (after launch, up to 3 attempts) ───────────
-    if !first_try {
-        log::info!("PPC auto-connect: post-launch ping attempts...");
-        let mut running = false;
-        for attempt in 1..=3 {
-            if ping_ppc().unwrap_or(false) {
-                running = true;
-                break;
-            }
-            log::warn!("PPC post-launch ping {}/3 failed", attempt);
-            std::thread::sleep(Duration::from_millis(500));
-        }
-        if !running {
-            let err_msg = format!(
-                "PPC launched but still not reachable after 3 retries"
-            );
-            log::error!("{}", err_msg);
-            let mut session = state.session.lock().map_err(|e| e.to_string())?;
-            session.connected = false;
-            session.status_message = err_msg.clone();
-            session.last_error_code = Some("0x10017".to_string());
-            if !show_ppc_error_window(&err_msg) {
-                show_ppc_warning_dialog(&app_handle, &err_msg);
-            }
-            return Err(err_msg);
-        }
-        log::info!("PPC is reachable after launch");
-    } else {
-        log::info!("PPC was already reachable on first try");
-    }
 
     // ── Step 4: Version check ────────────────────────────────────────
     let ppc_version = match check_ppc_version() {

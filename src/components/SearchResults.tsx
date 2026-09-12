@@ -81,6 +81,13 @@ export function SearchResults({
     (e: KeyboardEvent) => {
       if (results.length === 0) return
 
+      // If user is typing in an input/textarea, do NOT intercept Enter.
+      // Enter in a textarea = newline; Enter in a search box = nothing.
+      const isInputFocused =
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      if (isInputFocused) return
+
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault()

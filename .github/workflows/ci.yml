@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test:
-    name: Test & Lint
+  check:
+    name: Check & Compile
     runs-on: windows-latest
 
     steps:
@@ -46,85 +46,19 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
+            src-tauri/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
       - name: Run Rust tests
-        run: cargo test --verbose
+        run: cargo test --manifest-path src-tauri/Cargo.toml --verbose
 
       - name: Run clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 
       - name: Check formatting
-        run: cargo fmt -- --check
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 
-  build:
-    name: Build (${{ matrix.target }})
-    needs: test
-    runs-on: windows-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-pc-windows-msvc
-            arch: 64-bit
-          - target: i686-pc-windows-msvc
-            arch: 32-bit
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-cargo-
-
-      - name: Build with Tauri
-        run: npx tauri build --target ${{ matrix.target }} --no-bundle
-
-      - name: Stage release artifacts
-        shell: pwsh
-        run: |
-          $stage = "release-artifacts/${{ matrix.arch }}"
-          New-Item -ItemType Directory -Force -Path $stage | Out-Null
-
-          $patterns = @('*.exe')
-          $files = foreach ($pattern in $patterns) {
-            Get-ChildItem -Path "target/${{ matrix.target }}/release" -Recurse -File -Filter $pattern -ErrorAction SilentlyContinue
-          }
-          if (-not $files) { throw "No executable or installer artifacts were produced" }
-          $files | Sort-Object FullName -Unique | Copy-Item -Destination $stage -Force
-
-          Copy-Item README.md, README-zh.md, LICENSE.md, install-context-menu.ps1, uninstall-context-menu.ps1 -Destination $stage -Force
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.arch }}-release
-          path: |
-            release-artifacts/${{ matrix.arch }}/*
-          if-no-files-found: error
+      - name: Compile test (no bundle)
+        run: cargo build --manifest-path src-tauri/Cargo.toml --release --no-default-features

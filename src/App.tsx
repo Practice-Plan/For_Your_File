@@ -1,26 +1,30 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, Suspense, lazy } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { invoke } from '@tauri-apps/api/core'
 import { SearchBox } from './components/SearchBox'
 import { SearchResults } from './components/SearchResults'
 import { GroupList } from './components/GroupList'
-import { EntryDetail } from './components/EntryDetail'
-import { AddEntryModal } from './components/AddEntryModal'
-import { CreateGroupModal } from './components/CreateGroupModal'
-import { EditGroupModal } from './components/EditGroupModal'
 import { DeleteConfirmModal } from './components/DeleteConfirmModal'
-import { HotkeySettings } from './components/HotkeySettings'
-import { InterfaceShortcutSettings } from './components/InterfaceShortcutSettings'
-import { AboutModal } from './components/AboutModal'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { EntryContextMenu, type EntryContextMenuState } from './components/EntryContextMenu'
-import { BatchImportModal } from './components/BatchImportModal'
 import { useSearch } from './hooks/useSearch'
 import { useGroups } from './hooks/useGroups'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useProtocol } from './hooks/useProtocol'
 import type { SearchResult as SearchResultType, GroupWithCount, Entry } from './types'
+
+// ── Lazy imports: heavy/low-frequency components ─────────────────
+// These only load when the user actually opens the feature, keeping
+// the initial chunk small. Each adds its own async chunk.
+const EntryDetail = lazy(() => import('./components/EntryDetail').then(m => ({ default: m.EntryDetail })))
+const AddEntryModal = lazy(() => import('./components/AddEntryModal').then(m => ({ default: m.AddEntryModal })))
+const BatchImportModal = lazy(() => import('./components/BatchImportModal').then(m => ({ default: m.BatchImportModal })))
+const CreateGroupModal = lazy(() => import('./components/CreateGroupModal').then(m => ({ default: m.CreateGroupModal })))
+const EditGroupModal = lazy(() => import('./components/EditGroupModal').then(m => ({ default: m.EditGroupModal })))
+const AboutModal = lazy(() => import('./components/AboutModal').then(m => ({ default: m.AboutModal })))
+const HotkeySettings = lazy(() => import('./components/HotkeySettings').then(m => ({ default: m.HotkeySettings })))
+const InterfaceShortcutSettings = lazy(() => import('./components/InterfaceShortcutSettings').then(m => ({ default: m.InterfaceShortcutSettings })))
 
 const THEME_STORAGE_KEY = 'app-theme'
 
@@ -789,11 +793,13 @@ function App() {
                 </div>
                 {/* Tab Content */}
                 <div className="flex-1 overflow-y-auto">
-                  {settingsTab === 'hotkey' ? (
-                    <HotkeySettings />
-                  ) : (
-                    <InterfaceShortcutSettings />
-                  )}
+                  <Suspense fallback={null}>
+                    {settingsTab === 'hotkey' ? (
+                      <HotkeySettings />
+                    ) : (
+                      <InterfaceShortcutSettings />
+                    )}
+                  </Suspense>
                 </div>
               </div>
             </motion.div>
@@ -802,29 +808,35 @@ function App() {
       </AnimatePresence>
 
       {/* Add Entry Modal */}
-      <AddEntryModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onCreated={handleEntryCreated}
-      />
+      <Suspense fallback={null}>
+        <AddEntryModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onCreated={handleEntryCreated}
+        />
+      </Suspense>
 
       {/* Create Group Modal */}
-      <CreateGroupModal
-        isOpen={showCreateGroupModal}
-        onClose={() => setShowCreateGroupModal(false)}
-        onCreate={handleCreateGroupSubmit}
-        existingNames={groups.map(g => g.name)}
-      />
+      <Suspense fallback={null}>
+        <CreateGroupModal
+          isOpen={showCreateGroupModal}
+          onClose={() => setShowCreateGroupModal(false)}
+          onCreate={handleCreateGroupSubmit}
+          existingNames={groups.map(g => g.name)}
+        />
+      </Suspense>
 
       {/* Edit Group Modal */}
-      <EditGroupModal
-        isOpen={editingGroup !== null}
-        group={editingGroup}
-        onClose={() => setEditingGroup(null)}
-        onSave={handleEditGroupSave}
-        onDelete={handleEditGroupDelete}
-        existingNames={groups.map(g => g.name)}
-      />
+      <Suspense fallback={null}>
+        <EditGroupModal
+          isOpen={editingGroup !== null}
+          group={editingGroup}
+          onClose={() => setEditingGroup(null)}
+          onSave={handleEditGroupSave}
+          onDelete={handleEditGroupDelete}
+          existingNames={groups.map(g => g.name)}
+        />
+      </Suspense>
 
       {/* Delete Group Confirmation Modal */}
       <DeleteConfirmModal
@@ -836,18 +848,22 @@ function App() {
       />
 
       {/* About Modal */}
-      <AboutModal
-        isOpen={showAboutModal}
-        onClose={() => setShowAboutModal(false)}
-      />
+      <Suspense fallback={null}>
+        <AboutModal
+          isOpen={showAboutModal}
+          onClose={() => setShowAboutModal(false)}
+        />
+      </Suspense>
 
       {/* Entry Detail Panel */}
-      <EntryDetail
-        entryId={selectedEntryId}
-        onClose={() => setSelectedEntryId(null)}
-        onUpdate={handleEntryUpdate}
-        onDelete={handleEntryDelete}
-      />
+      <Suspense fallback={null}>
+        <EntryDetail
+          entryId={selectedEntryId}
+          onClose={() => setSelectedEntryId(null)}
+          onUpdate={handleEntryUpdate}
+          onDelete={handleEntryDelete}
+        />
+      </Suspense>
 
       {/* Right-click context menu for entries */}
       <EntryContextMenu
@@ -928,11 +944,13 @@ function App() {
       </AnimatePresence>
 
       {/* Batch Import Modal */}
-      <BatchImportModal
-        isOpen={showBatchImport}
-        onClose={() => setShowBatchImport(false)}
-        onCreated={handleEntryCreated}
-      />
+      <Suspense fallback={null}>
+        <BatchImportModal
+          isOpen={showBatchImport}
+          onClose={() => setShowBatchImport(false)}
+          onCreated={handleEntryCreated}
+        />
+      </Suspense>
     </div>
   )
 }

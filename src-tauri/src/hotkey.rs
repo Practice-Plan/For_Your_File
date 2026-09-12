@@ -367,8 +367,13 @@ impl HotkeyManager {
                             }
                         }
                     } else {
-                        // No message, sleep briefly to avoid busy-loop
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        // No message, sleep to avoid busy-loop.
+                        // 50ms = 20 polls/sec is plenty for hotkey responsiveness
+                        // (user cannot perceive <100ms latency) while keeping
+                        // idle CPU usage near zero. Previous 10ms caused
+                        // unnecessary wake-ups every 10ms (100/s) which
+                        // kept one core spinning on PeekMessageW + try_recv.
+                        std::thread::sleep(std::time::Duration::from_millis(50));
                     }
                 }
 

@@ -4,6 +4,8 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useTranslation } from 'react-i18next'
 
+const THEME_STORAGE_KEY = 'app-theme'
+
 type TableName = 'entries' | 'groups' | 'entry_groups'
 
 type DatabasePreviewBatch = {
@@ -28,7 +30,7 @@ const maxRenderedRows = 1000
 const maxRowsPerPage = 5000 // safety ceiling to prevent OOM
 
 export function DatabasePreview() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [activeTable, setActiveTable] = useState<TableName>('entries')
   const [columns, setColumns] = useState<string[]>([])
   const [rows, setRows] = useState<unknown[][]>([])
@@ -43,14 +45,58 @@ export function DatabasePreview() {
   // Guard: prevent overlapping requests and stale responses from racing.
   const activeRequestId = useRef(0)
   const mountedRef = useRef(true)
+  const isLoadingRef = useRef(false)
 
-  useEffect(() => {
-    mountedRef.current = true
-    return () => {
-      mountedRef.current = false
+  // ── Theme initialization + cross-window sync ────────────────────
+  const applyTheme = useCallback((theme: 'light' | 'dark') => {
+    const root = document.documentElement
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
     }
   }, [])
 
+  useEffect(() => {
+    mountedRef.current = true
+
+    // Apply initial theme from localStorage (same key as main window)
+    const saved = localStorage.getItem(THEME_STORAGE_KEY)
+    const initialTheme: 'light' | 'dark' =
+      saved === 'dark' || saved === 'light'
+        ? saved
+        : window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+    applyTheme(initialTheme)
+
+    // Listen for theme changes from main window via storage event
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === THEME_STORAGE_KEY && e.newValue) {
+        applyTheme(e.newValue as 'light' | 'dark')
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+
+    return () => {
+      mountedRef.current = false
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [applyTheme])
+
+  // ── Language cross-window sync ───────────────────────────────────
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      // i18next stores language preference under 'i18nextLng'
+      if (e.key === 'i18nextLng' && e.newValue && i18n.language !== e.newValue) {
+        void i18n.changeLanguage(e.newValue)
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [i18n])
+
+  // ── Backend progress events ──────────────────────────────────────
   useEffect(() => {
     const unlisten = listen<ProgressEvent>('database-preview-progress', (event) => {
       if (!mountedRef.current) return
@@ -64,8 +110,11 @@ export function DatabasePreview() {
     }
   }, [activeTable])
 
+  // ── Data loader (no useState in dependency chain!) ───────────────
   const loadTable = useCallback(async (table: TableName, nextOffset = 0) => {
-    if (isLoading) return // prevent overlapping
+    // Use ref instead of state to avoid circular dependency with useEffect
+    if (isLoadingRef.current) return
+    isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
     setRows([])
@@ -105,13 +154,18 @@ export function DatabasePreview() {
       setRows([])
     } finally {
       if (mountedRef.current && requestId === activeRequestId.current) {
+        isLoadingRef.current = false
         setIsLoading(false)
+      } else {
+        // Even for stale requests, release the loading guard
+        isLoadingRef.current = false
       }
     }
-  }, [isLoading])
+  }, []) // No state deps — stable identity forever
 
+  // Trigger load when activeTable changes (loadTable is now stable)
   useEffect(() => {
-    void loadTable(activeTable)
+    void loadTable(activeTable, 0)
   }, [activeTable, loadTable])
 
   const closeWindow = () => {
