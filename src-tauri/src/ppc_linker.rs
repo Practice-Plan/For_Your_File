@@ -524,10 +524,7 @@ fn find_installed_ppc() -> Option<std::path::PathBuf> {
     let base = appdata.join("wang.station");
 
     // Prefer 64-bit ppc.exe, fall back to ppc32.exe
-    let candidates = [
-        base.join("ppc.exe"),
-        base.join("ppc32.exe"),
-    ];
+    let candidates = [base.join("ppc.exe"), base.join("ppc32.exe")];
 
     candidates.into_iter().find(|p| p.is_file())
 }
@@ -563,8 +560,7 @@ fn launch_installed_ppc_as_user() -> Result<(), String> {
 
     // Combined flags: no window + detached + new process group
     // = fully independent of the parent Tauri process
-    const PPC_CREATION_FLAGS: u32 =
-        0x08000000 // CREATE_NO_WINDOW
+    const PPC_CREATION_FLAGS: u32 = 0x08000000 // CREATE_NO_WINDOW
         | 0x00000008 // DETACHED_PROCESS
         | 0x00000200; // CREATE_NEW_PROCESS_GROUP
 
@@ -741,8 +737,10 @@ pub async fn ppc_connect_auto(
                 }
                 return Err(err_msg);
             }
-            log::info!("PPC is reachable after launch (within {}s)", PPC_CONNECT_TIMEOUT_SECS);
-            true
+            log::info!(
+                "PPC is reachable after launch (within {}s)",
+                PPC_CONNECT_TIMEOUT_SECS
+            );
         }
 
         #[cfg(not(windows))]

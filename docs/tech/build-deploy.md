@@ -113,23 +113,48 @@ This command:
 3. Opens application window
 4. Enables hot module replacement
 
-### Production Build
+### Production Build (Compile Only — No Installer)
+
+v0.0.4+ disables Tauri bundling (`bundle.active: false`) to speed up CI
+and avoid installer overhead. The workflow is: compile → run smoke tests → ship
+the raw executable.
 
 ```powershell
-# Build optimized production bundle
-npm run tauri build
+# Build optimized production binary (compile only, no installer)
+cargo build --manifest-path src-tauri/Cargo.toml --release --no-default-features
 ```
 
-Build output locations:
+Build output:
 ```
 src-tauri/target/release/
-├── lnk-file-management-center.exe  # Main executable
-└── bundle/
-    ├── msi/
-    │   └── LNK File Management Center_0.0.4_x64.msi
-    └── nsis/
-        └── LNK File Management Center_0.0.4_x64-setup.exe
+├── lnk-file-management-center.exe  # Main executable (self-contained)
 ```
+
+Frontend production bundle (separate step, called by `beforeBuildCommand`):
+```powershell
+npm run build
+# Output: dist/assets/ — 17 chunks, max 143 kB, zero 500 kB warnings
+```
+
+> **Note**: Full `npm run tauri build` still works but produces only the
+> raw `.exe` (no MSI/NSIS). The `bundle.targets` is intentionally empty in
+> `tauri.conf.json`. If an installer is needed, set `"active": true` and
+> `"targets": ["nsis"]` locally — do NOT commit that change.
+
+### CI Build Pipeline
+
+`.github/workflows/ci.yml` runs a single `check` job on every push/PR:
+
+| Step | Command | Purpose |
+|------|---------|---------|
+| Version sync | PowerShell assert | Verify package.json / Cargo.toml / tauri.conf.json all match |
+| Type-check | `npm run type-check` | Zero TypeScript errors |
+| Rust tests | `cargo test --verbose` | All unit tests pass |
+| Lint | `cargo clippy -- -D warnings` | Zero clippy warnings |
+| Format | `cargo fmt -- --check` | Code style correct |
+| Compile | `cargo build --release --no-default-features` | Produce `.exe` only |
+
+No artifact upload, no installer generation — CI is purely a quality gate.
 
 ### Build Configuration
 
@@ -146,15 +171,25 @@ strip = true           # Strip symbols
 #### vite.config.ts (Frontend)
 
 ```typescript
+// v0.0.4+ uses manualChunks + React.lazy for optimal code-splitting
 export default defineConfig({
   build: {
-    target: 'esnext',
-    minify: 'terser',
-    sourcemap: false,
+    minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
+        manualChunks(id) {
+          const normalized = id.replace(/\\/g, '/');
+          if (!normalized.includes('node_modules/')) return undefined;
+
+          if (normalized.includes('react') || normalized.includes('scheduler'))
+            return 'vendor-react';
+          if (normalized.includes('framer-motion') || normalized.includes('motion-'))
+            return 'vendor-framer';
+          if (normalized.includes('i18next'))
+            return 'vendor-i18n';
+          if (normalized.includes('@tauri-apps'))
+            return 'vendor-tauri';
+          return undefined; // let Rollup auto-group the rest
         },
       },
     },
@@ -167,13 +202,13 @@ export default defineConfig({
 ```json
 {
   "bundle": {
-    "active": true,
-    "targets": ["msi", "nsis"],
-    "windows": {
-      "wix": {
-        "language": "zh-CN"
-      }
-    }
+    "active": false,
+    "targets": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/icon.ico"
+    ]
   }
 }
 ```
@@ -247,37 +282,40 @@ cargo tarpaulin --out Html
 
 ## Deployment
 
-### MSI Installer
+### Direct Executable (Current)
 
-**Location**: `src-tauri/target/release/bundle/msi/`
+v0.0.4+ ships as a single `.exe` — no installer, no MSI, no NSIS.
+Simply copy `lnk-file-management-center.exe` to the target machine and run.
 
-**Installation**:
 ```powershell
-# Install MSI
-msiexec /i "LNK File Management Center_0.0.4_x64.msi"
+# Build the executable
+cargo build --manifest-path src-tauri/Cargo.toml --release --no-default-features
 
-# Silent install
-msiexec /i "LNK File Management Center_0.0.4_x64.msi" /quiet
-
-# Uninstall
-msiexec /x "LNK File Management Center_0.0.4_x64.msi"
+# Find the output
+dir src-tauri\target\release\lnk-file-management-center.exe
 ```
 
-### NSIS Installer
+### If You Need an Installer (Future)
 
-**Location**: `src-tauri/target/release/bundle/nsis/`
+Installers are currently disabled in `tauri.conf.json`. To re-enable locally:
 
-**Installation**:
-```powershell
-# Run installer
-.\LNK File Management Center_0.0.4_x64-setup.exe
-
-# Silent install
-.\LNK File Management Center_0.0.4_x64-setup.exe /S
-
-# Uninstall
-"C:\Program Files\LNK File Management Center\uninstall.exe" /S
+```json
+{
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"]
+  }
+}
 ```
+
+Then:
+```powershell
+npm run tauri build
+# Output: src-tauri/target/release/bundle/nsis/*-setup.exe
+```
+
+> **Do not commit** installer-related changes to `tauri.conf.json`.
+> The CI pipeline and default build both target compile-only.
 
 ### Portable Version
 
@@ -481,9 +519,10 @@ schtasks /create /tn "LNK Backup" /tr "cmd /c copy ..." /sc daily /st 02:00
   copy backup\lnk_management_20260725.db %APPDATA%\wang.station\app\For_Your_File\lnk_management.db
    ```
 
-3. **Install previous version**:
+3. **Deploy previous version**:
    ```powershell
-  msiexec /i LNK_File_Management_Center_0.0.4_x64.msi
+   # v0.0.4+ ships as raw exe — just copy and run
+   copy LNK_File_Management_Center_0.0.3.exe LNK_File_Management_Center.exe
    ```
 
 ### Configuration Migration
