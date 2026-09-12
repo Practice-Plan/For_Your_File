@@ -1,4 +1,4 @@
-<img src="./social-preview.svg" alt="icon Logo" width="3000" height="400" style="border-radius: 12px;">
+<img src="./social-preview.svg" alt="LNK File Management Center banner" width="100%" style="border-radius: 12px;">
 
 # Centre de gestion des raccourcis LNK
 
@@ -23,6 +23,7 @@ Le Centre de gestion des raccourcis LNK vous aide à centraliser la gestion des 
 - **⏰ Rappels d’expiration** — Définissez des dates d’expiration pour les fichiers temporaires, recevez des alertes et nettoyez en lot à l’échéance
 - **📚 Regroupement intelligent** — 8 couleurs de regroupement, affectation par glisser-déposer, opérations par lot et import/export de groupes (JSON/CSV/HTML)
 - **📦 Import en lot** — Glisser-déposer ou parcourir pour importer plusieurs éléments, avec configuration unifiée des balises, paramètres et mode d’ouverture, et barre de progression en direct
+- **🗃️ Aperçu de la base de données** — Inspectez la base de données locale complète dans une fenêtre séparée avec progression réelle et pagination bornée
 - **🌐 Internationalisation** — Prise en charge du chinois, de l’anglais, du français, du russe et de l’arabe
 - **🎨 Changement de thème** — Thèmes clair/sombre avec mémorisation des préférences utilisateur
 - **🖱️ Menu contextuel** — Intégration au menu contextuel de l’Explorateur Windows pour ajouter rapidement des éléments
@@ -64,20 +65,19 @@ npm run dev
 
 ### Build de production
 
+v0.0.4+ désactive le bundling Tauri (`bundle.active: false`). Le CI ne fait que vérifier et compiler.
+
 ```bash
-# Recommandé : construire l’application Tauri complète (frontend + ressources intégrées automatiquement)
+# Option 1 : compilation directe (recommandé, pas d'installateur)
+cargo build --manifest-path src-tauri/Cargo.toml --release --no-default-features
+
+# Option 2 : build Tauri complet (frontend + backend, mais seulement l'exe brut)
 npx tauri build
-
-# Générer le package d’installation (64 bits)
-npx tauri build --target x86_64-pc-windows-msvc
-
-# Générer le package d’installation (32 bits ; exécuter d’abord rustup target add i686-pc-windows-msvc)
-npx tauri build --target i686-pc-windows-msvc
 ```
 
-Les artefacts sont générés dans `src-tauri/target/<target>/release/bundle/` et comprennent les installateurs `msi/` et `nsis/`.
+Sortie : `src-tauri/target/release/lnk-file-management-center.exe` (un binaire unique, pas de MSI/NSIS)
 
-> **⚠️ Important** : lancer `cargo build --release` seul produit un binaire cassé, car il tente de se connecter au serveur de développement et peut échouer avec « Connection Refused ». Utilisez toujours `npx tauri build` ou `cargo build --release --features custom-protocol` pour intégrer correctement les ressources frontend.
+> **Si vous avez besoin d'un installateur** : définissez temporairement `"bundle.active": true`, `"targets": ["nsis"]` dans `tauri.conf.json`, puis reprenez la configuration après le build. Ne committez pas ces changements.
 
 ## 📂 Structure du projet
 
@@ -107,7 +107,7 @@ For_Your_File/
 ├── docs/                         # Documentation
 │   ├── tech/                     # Documentation technique
 │   └── user/                     # Guide utilisateur
-├── .github/workflows/ci.yml      # CI (tests + packaging 32/64 bits)
+├── .github/workflows/ci.yml      # CI (vérification + compilation, sans bundle)
 ├── package.json
 └── LICENSE.md                    # GPL-3.0
 ```

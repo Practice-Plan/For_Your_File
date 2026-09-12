@@ -1,4 +1,4 @@
-<img src="./social-preview.svg" alt="icon Logo" width="3000" height="400" style="border-radius: 12px;">
+<img src="./social-preview.svg" alt="LNK File Management Center banner" width="100%" style="border-radius: 12px;">
 
 # LNK File Management Center
 
@@ -65,20 +65,19 @@ npm run dev
 
 ### 生产构建
 
+v0.0.4+ 禁用 Tauri bundling（`bundle.active: false`），CI 只做编译检查。
+
 ```bash
-# 推荐方式：构建完整 Tauri 应用（自动构建前端 + 嵌入资源）
+# 方式一：直接编译（推荐，不生成安装包）
+cargo build --manifest-path src-tauri/Cargo.toml --release --no-default-features
+
+# 方式二：完整 Tauri build（前端 + 后端，但也只输出原始 exe）
 npx tauri build
-
-# 生成安装包（64 位）
-npx tauri build --target x86_64-pc-windows-msvc
-
-# 生成安装包（32 位，需先 rustup target add i686-pc-windows-msvc）
-npx tauri build --target i686-pc-windows-msvc
 ```
 
-产物位于 `src-tauri/target/<target>/release/bundle/`，包含 `msi/` 与 `nsis/` 两种安装包。
+产物：`src-tauri/target/release/lnk-file-management-center.exe`（单一可执行文件，无 MSI/NSIS）
 
-> **⚠️ 重要**：单独执行 `cargo build --release` 会产生损坏的二进制文件（会尝试连接 dev server 并报 "Connection Refused"）。必须通过 `npx tauri build` 或 `cargo build --release --features custom-protocol` 构建以嵌入前端资源。
+> **如需要安装包**：在 `tauri.conf.json` 中临时设置 `"bundle.active": true`, `"targets": ["nsis"]`，构建后改回。不要提交 installer 相关配置。
 
 ## 📂 项目结构
 
@@ -108,7 +107,7 @@ For_Your_File/
 ├── docs/                         # 文档
 │   ├── tech/                     # 技术文档
 │   └── user/                     # 用户指南
-├── .github/workflows/ci.yml      # CI（测试 + 32/64 位打包）
+├── .github/workflows/ci.yml      # CI（检查 + 编译测试，不打包）
 ├── package.json
 └── LICENSE.md                    # GPL-3.0
 ```

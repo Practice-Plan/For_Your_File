@@ -1,4 +1,4 @@
-<img src="./social-preview.svg" alt="icon Logo" width="3000" height="400" style="border-radius: 12px;">
+<img src="./social-preview.svg" alt="LNK File Management Center banner" width="100%" style="border-radius: 12px;">
 
 # LNK File Management Center
 
@@ -65,20 +65,19 @@ npm run dev
 
 ### Production build
 
+v0.0.4+ disables Tauri bundling (`bundle.active: false`). CI only checks and compiles.
+
 ```bash
-# Recommended: build the full Tauri app (builds frontend + embeds resources automatically)
+# Option 1: direct compilation (recommended, no installer)
+cargo build --manifest-path src-tauri/Cargo.toml --release --no-default-features
+
+# Option 2: full Tauri build (frontend + backend, but only raw exe)
 npx tauri build
-
-# Generate installation package (64-bit)
-npx tauri build --target x86_64-pc-windows-msvc
-
-# Generate installation package (32-bit; run rustup target add i686-pc-windows-msvc first)
-npx tauri build --target i686-pc-windows-msvc
 ```
 
-Artifacts are generated under `src-tauri/target/<target>/release/bundle/` and include both `msi/` and `nsis/` installers.
+Output: `src-tauri/target/release/lnk-file-management-center.exe` (a single binary, no MSI/NSIS)
 
-> **⚠️ Important**: Running `cargo build --release` alone produces a broken binary because it tries to connect to the dev server and may fail with "Connection Refused". Always use `npx tauri build` or `cargo build --release --features custom-protocol` to embed frontend resources correctly.
+> **If you need an installer**: temporarily set `"bundle.active": true`, `"targets": ["nsis"]` in `tauri.conf.json`, then revert after the build. Do not commit installer-related changes.
 
 ## 📂 Project structure
 
@@ -108,7 +107,7 @@ For_Your_File/
 ├── docs/                         # Documentation
 │   ├── tech/                     # Technical docs
 │   └── user/                     # User guide
-├── .github/workflows/ci.yml      # CI pipeline (tests + 32/64-bit packaging)
+├── .github/workflows/ci.yml      # CI (check + compile, no bundle)
 ├── package.json
 └── LICENSE.md                    # GPL-3.0
 ```

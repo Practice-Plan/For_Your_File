@@ -1,4 +1,4 @@
-<img src="./social-preview.svg" alt="icon Logo" width="3000" height="400" style="border-radius: 12px;">
+<img src="./social-preview.svg" alt="LNK File Management Center banner" width="100%" style="border-radius: 12px;">
 
 <div dir="rtl">
 
@@ -25,6 +25,7 @@
 - **⏰ تنبيهات انتهاء الصلاحية** — اضبط تاريخ انتهاء صلاحية الملفات المؤقتة، واستقبل التنبيهات أو نظفها مجمعة عند انتهاء صلاحيتها
 - **📚 التجميع الذكي** — 8 ألوان للتجميع، تعيين بالسحب والإفلات، عمليات مجمعة، واستيراد/تصدير المجموعات (JSON/CSV/HTML)
 - **📦 الاستيراد المجمع** — اسحب وأفلت أو تصفح لاستيراد عناصر متعددة، مع إعداد علامات/معلمات/طريقة الفتح بشكل موحد، ومؤشر تقدم مباشر
+- **🗃️ معاينة قاعدة البيانات** — افحص قاعدة البيانات المحلية الكاملة في نافذة منفصلة مع تقدم حقيقي وترحيل محدود
 - **🌐 التدويل** — يدعم الصينية والإنجليزية والفرنسية والروسية والعربية
 - **🎨 تبديل السمة** — سمة فاتحة/داكنة مع حفظ تفضيلات المستخدم
 - **🖱️ قائمة السياق** — تكامل مع قائمة السياق في Windows Explorer لإضافة العناصر بسرعة
@@ -66,20 +67,19 @@ npm run dev
 
 ### بناء الإنتاج
 
+الإصدار 0.0.4+ يعطل تجميع Tauri (`bundle.active: false`). يقوم CI بالفحص والترجمة فقط.
+
 ```bash
-# الموصى به: بناء التطبيق الكامل من Tauri (يبني الواجهة الأمامية ويضم الموارد تلقائيًا)
+# الخيار 1: الترجمة المباشرة (مستحسن، بدون مثبت)
+cargo build --manifest-path src-tauri/Cargo.toml --release --no-default-features
+
+# الخيار 2: بناء Tauri كامل (واجهة + خلفية، لكن exe خام فقط)
 npx tauri build
-
-# إنشاء حزمة التثبيت (64 بت)
-npx tauri build --target x86_64-pc-windows-msvc
-
-# إنشاء حزمة التثبيت (32 بت؛ أولاً قم بتشغيل rustup target add i686-pc-windows-msvc)
-npx tauri build --target i686-pc-windows-msvc
 ```
 
-يتم إنشاء الملفات النهائية في `src-tauri/target/<target>/release/bundle/` وتحتوي على حزم التثبيت `msi/` و `nsis/`.
+المخرجات: `src-tauri/target/release/lnk-file-management-center.exe` (ملف ثنائي واحد، بدون MSI/NSIS)
 
-> **⚠️ مهم**: تنفيذ `cargo build --release` وحده ينتج ملف ثنائي معطوب، لأنه يحاول الاتصال بخادم التطوير وقد يفشل برسالة "Connection Refused". استخدم دائمًا `npx tauri build` أو `cargo build --release --features custom-protocol` لتضمين موارد الواجهة الأمامية بشكل صحيح.
+> **إذا احتجت إلى مثبت**: عيّن مؤقتًا `"bundle.active": true`, `"targets": ["nsis"]` في `tauri.conf.json`، ثم أعد الوضع بعد البناء. لا تُدخل تغييرات المثبت في commits.
 
 ## 📂 هيكل المشروع
 
@@ -109,7 +109,7 @@ For_Your_File/
 ├── docs/                         # الوثائق
 │   ├── tech/                     # وثائق تقنية
 │   └── user/                     # دليل المستخدم
-├── .github/workflows/ci.yml      # CI (اختبارات + حزم 32/64 بت)
+├── .github/workflows/ci.yml      # CI (فحص + ترجمة، بدون حزمة)
 ├── package.json
 └── LICENSE.md                    # GPL-3.0
 ```

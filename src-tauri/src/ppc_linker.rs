@@ -741,6 +741,7 @@ pub async fn ppc_connect_auto(
                 "PPC is reachable after launch (within {}s)",
                 PPC_CONNECT_TIMEOUT_SECS
             );
+            true
         }
 
         #[cfg(not(windows))]
