@@ -33,9 +33,9 @@ const APP_ID: &str = "fyf";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Minimum supported PPC version.
-const PPC_MIN_VERSION: &str = "0.0.7";
+const PPC_MIN_VERSION: &str = "0.0.9";
 /// Maximum supported PPC version.
-const PPC_MAX_VERSION: &str = "0.0.9";
+const PPC_MAX_VERSION: &str = "0.1.0";
 
 /// TCP read/write timeout in seconds.
 const TIMEOUT_SECS: u64 = 5;
@@ -532,10 +532,22 @@ fn find_installed_ppc() -> Option<std::path::PathBuf> {
     candidates.into_iter().find(|p| p.is_file())
 }
 
-/// Launch the per-user PPC as a hidden background process.
-/// Uses CREATE_NO_WINDOW (0x08000000) so the PPC console/taskbar window
-/// never appears — PPC runs silently in the background just for its TCP
-/// server. The app does not own the PPC process; PPC is per-user shared.
+/// Launch the per-user PPC as a hidden, fully-independent background process.
+///
+/// Creation flags (combined):
+///   CREATE_NO_WINDOW       = 0x08000000 — no console/taskbar window
+///   DETACHED_PROCESS       = 0x00000008 — do NOT attach to parent's console
+///   CREATE_NEW_PROCESS_GROUP = 0x00000200 — break out of parent's Job object
+///
+/// The DETACHED + CREATE_NEW_PROCESS_GROUP combo is critical on Windows:
+/// GUI apps (including Tauri) often run inside a Job object that gets
+/// terminated when the parent exits. Without these flags, PPC — our child
+/// process — gets swept away too. CREATE_NEW_PROCESS_GROUP makes PPC
+/// its own process group leader, immune to the parent's Job shutdown.
+///
+/// We intentionally let the Child drop immediately after spawn: on Windows,
+/// Rust's std Child drop only closes the process HANDLE, it does NOT call
+/// TerminateProcess. PPC continues running as a fully independent daemon.
 #[cfg(windows)]
 fn launch_installed_ppc_as_user() -> Result<(), String> {
     use std::os::windows::process::CommandExt;
@@ -545,17 +557,25 @@ fn launch_installed_ppc_as_user() -> Result<(), String> {
     })?;
 
     log::info!(
-        "Starting PPC in background (hidden window): {}",
+        "Starting PPC in background (detached, no window): {}",
         executable.display()
     );
 
-    // CREATE_NO_WINDOW = 0x08000000
-    // Do NOT use start() — we need to spawn and detach without waiting
-    // for PPC to finish (it's a long-running server).
-    std::process::Command::new(&executable)
-        .creation_flags(0x08000000)
+    // Combined flags: no window + detached + new process group
+    // = fully independent of the parent Tauri process
+    const PPC_CREATION_FLAGS: u32 =
+        0x08000000 // CREATE_NO_WINDOW
+        | 0x00000008 // DETACHED_PROCESS
+        | 0x00000200; // CREATE_NEW_PROCESS_GROUP
+
+    let _child = std::process::Command::new(&executable)
+        .creation_flags(PPC_CREATION_FLAGS)
         .spawn()
         .map_err(|e| format!("Failed to spawn PPC: {}", e))?;
+    // Child drops here — only closes handle, does NOT kill PPC on Windows.
+    // PPC is now fully detached and will survive the parent's Job shutdown.
+
+    log::info!("PPC spawned successfully (detached PID unknown after drop)");
 
     Ok(())
 }

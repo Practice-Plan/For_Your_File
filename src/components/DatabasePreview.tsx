@@ -60,6 +60,12 @@ export function DatabasePreview() {
   useEffect(() => {
     mountedRef.current = true
 
+    // Disable right-click context menu on the database preview window —
+    // this is a read-only data view and the default browser menu is useless
+    // here (no copy protection needed, just clean UX).
+    const preventContextMenu = (e: MouseEvent) => e.preventDefault()
+    window.addEventListener('contextmenu', preventContextMenu)
+
     // Apply initial theme from localStorage (same key as main window)
     const saved = localStorage.getItem(THEME_STORAGE_KEY)
     const initialTheme: 'light' | 'dark' =
@@ -80,6 +86,7 @@ export function DatabasePreview() {
 
     return () => {
       mountedRef.current = false
+      window.removeEventListener('contextmenu', preventContextMenu)
       window.removeEventListener('storage', handleStorage)
     }
   }, [applyTheme])
