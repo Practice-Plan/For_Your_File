@@ -26,7 +26,8 @@ function flatten(obj, prefix = '', out = new Map()) {
 }
 
 function readJson(rel) {
-  const raw = fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/^\uFEFF/, '')
+  // 去掉文件开头可能存在的 UTF-8 BOM（兼容重复写入的情况）
+  const raw = fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/^\uFEFF+/, '')
   return JSON.parse(raw)
 }
 
