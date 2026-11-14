@@ -106,6 +106,7 @@ LNK File Management Center provides a safe and intelligent way to manage Windows
 - **[Database Schema](./database-schema.md)** - Complete database structure, ERD diagrams, and migration history
 - **[Backend API](./api.md)** - Tauri command reference, request/response formats
 - **[Architecture](./architecture.md)** - System design, components, and data flow
+- **[Component Packages](./component-packages/en.md)** - Declarative component package format, authoring guide, and import/export rules
 
 ### Operations
 - **[Build & Deployment](./build-deploy.md)** - Development setup, build procedures, release process
@@ -153,6 +154,7 @@ LNK File Management Center provides a safe and intelligent way to manage Windows
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.0.5 | 2026-11-14 | Go launcher (`launcher/`) starts PPC from `%APPDATA%\wang.station`; PPC v0.0.9–v0.1.1 compatibility with optional AUTH; all errors shown through PPC (`WINDOW ERROR`, no fallback); multilingual search (unicode61 `remove_diacritics 2`, FTS/LIKE hybrid for CJK/Arabic/Cyrillic); appearance personalization (accent, font size, reduced motion); declarative component package system with import/export, built-in defaults and authoring guide |
 | 0.0.4 | 2026-09-12 | PPC detached process launch (survives parent Job cleanup), Try-Launch-Try connect with 5-min retry, PPC 32-bit fallback, DatabasePreview fix (infinite load, theme, language sync), Enter key fix in textarea/search, search LRU cache (50 entries / 5-min TTL), CPU optimization (hotkey poll 10ms→50ms), Vite code-split (React.lazy + manualChunks, main chunk 522 kB → 116 kB), About modal 150% upscale, banner cleanup, CI simplified to check-only, installer disabled |
 | 0.0.3 | 2026-08 | Added database preview with bounded pagination and real loading progress |
 | 0.1.0 | 2026-07 | Initial release |

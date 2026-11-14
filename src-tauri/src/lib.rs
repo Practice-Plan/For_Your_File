@@ -8,9 +8,12 @@
 mod app_scanner;
 mod cli;
 mod commands;
+mod components;
 mod db;
 mod expiration;
+mod guide;
 mod hotkey;
+mod i18n;
 mod lnk;
 mod models;
 mod notifications;
@@ -47,31 +50,18 @@ struct TrayLabels {
 /// 3. English (default)
 ///
 /// Supported languages: en, zh, fr, ru, ar. Falls back to English if unsupported.
-fn get_tray_labels() -> TrayLabels {
-    let lang = detect_system_language();
-    log::info!("Detected system language for tray: {}", lang);
+fn get_tray_labels(app: &tauri::AppHandle) -> TrayLabels {
+    // Prefer the language the frontend persisted; fall back to the OS locale
+    // on first launch. All labels come from `src-tauri/locales/*.json`.
+    let lang = app
+        .try_state::<i18n::AppLanguage>()
+        .map(|state| state.current())
+        .unwrap_or_else(detect_system_language);
+    log::info!("Tray labels language: {}", lang);
 
-    match lang.as_str() {
-        "zh" => TrayLabels {
-            show: "显示/隐藏".to_string(),
-            quit: "退出".to_string(),
-        },
-        "fr" => TrayLabels {
-            show: "Afficher/Masquer".to_string(),
-            quit: "Quitter".to_string(),
-        },
-        "ru" => TrayLabels {
-            show: "Показать/Скрыть".to_string(),
-            quit: "Выйти".to_string(),
-        },
-        "ar" => TrayLabels {
-            show: "إظهار/إخفاء".to_string(),
-            quit: "خروج".to_string(),
-        },
-        _ => TrayLabels {
-            show: "Show/Hide".to_string(),
-            quit: "Quit".to_string(),
-        },
+    TrayLabels {
+        show: i18n::t(&lang, "tray.show", &[]),
+        quit: i18n::t(&lang, "tray.quit", &[]),
     }
 }
 
@@ -97,6 +87,22 @@ fn detect_system_language() -> String {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// 前端切换语言时同步到后端，供托盘、PPC 错误与创作指南使用。
+#[tauri::command]
+fn set_app_language(
+    lang: String,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, i18n::AppLanguage>,
+) -> String {
+    let code = i18n::normalize(&lang);
+    if let Ok(mut current) = state.0.lock() {
+        *current = code.clone();
+    }
+    i18n::save_language(&app, &code);
+    log::info!("App language set to {}", code);
+    code
+}
+
 pub fn run() {
     // Parse CLI arguments first
     let cli_args = CliArgs::parse();
@@ -165,11 +171,14 @@ pub fn run() {
                 log::error!("Failed to initialize database: {}", e);
             }
 
+            // Resolve the persisted UI language before building the tray menu.
+            // The frontend syncs it through the `set_app_language` command.
+            let initial_lang = i18n::load_language(app.handle());
+            app.manage(i18n::AppLanguage::new(&initial_lang));
+
             // Initialize system tray with context menu.
-            // Menu item labels are localized at build time by detecting the system language.
-            // Tauri's MenuItem text is static once built, so we resolve the language here.
-            // The frontend (i18n) separately detects language via navigator/localStorage.
-            let tray_labels = get_tray_labels();
+            // Menu item labels come from `src-tauri/locales/*.json`.
+            let tray_labels = get_tray_labels(app.handle());
             let show_item = MenuItem::with_id(app, "show", &tray_labels.show, true, None::<&str>)
                 .map_err(|e| {
                 log::error!("Failed to create tray menu item 'show': {}", e);
@@ -361,6 +370,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            set_app_language,
             commands::get_app_version,
             commands::parse_lnk_file,
             commands::list_installed_apps,
@@ -424,6 +434,13 @@ pub fn run() {
             ppc_linker::ppc_send_command,
             ppc_linker::ppc_disconnect,
             ppc_linker::ppc_error_codes,
+            ppc_linker::ppc_report_error,
+            components::list_component_packages,
+            components::import_component_package,
+            components::export_component_package,
+            components::set_component_package_enabled,
+            components::delete_component_package,
+            components::get_component_creation_guide,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

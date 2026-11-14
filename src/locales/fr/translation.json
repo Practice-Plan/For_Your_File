@@ -1,4 +1,32 @@
 ﻿{
+    "errors":  {
+                   "unexpected":  "Erreur inattendue",
+                   "components":  {
+                                      "invalidJson":  "JSON du paquet de composants invalide",
+                                      "reservedId":  "L'identifiant « {{id}} » est réservé à un paquet intégré",
+                                      "tooLarge":  "Paquet trop volumineux ({{size}} octets, max {{max}})",
+                                      "readFailed":  "Impossible de lire « {{path}} »",
+                                      "writeFailed":  "Échec de l'enregistrement du paquet",
+                                      "notFound":  "Paquet « {{id}} » introuvable",
+                                      "builtinReadonly":  "Les paquets intégrés ne peuvent pas être supprimés",
+                                      "notAFile":  "« {{path}} » n'est pas un fichier",
+                                      "schemaUnsupported":  "Schéma {{actual}} non pris en charge (attendu : {{expected}})",
+                                      "nameInvalid":  "Le nom du paquet doit contenir 1 à 100 caractères",
+                                      "versionInvalid":  "Version « {{version}} » invalide (nombres séparés par des points, par exemple 1.0.0)",
+                                      "kindUnsupported":  "Type de paquet « {{kind}} » non pris en charge (autorisés : {{kinds}})",
+                                      "tooManyComponents":  "Un paquet peut contenir au plus {{max}} composants",
+                                      "componentIdInvalid":  "L'identifiant du composant doit contenir 1 à 64 caractères",
+                                      "componentKindMissing":  "Le type du composant « {{id}} » est manquant",
+                                      "componentTooLarge":  "La configuration du composant « {{id}} » est trop volumineuse ({{size}} octets, max {{max}})",
+                                      "idInvalid":  "Identifiant de paquet « {{id}} » invalide (3 à 64 caractères : a-z, 0-9, '.', '-', '_')",
+                                      "deleteFailed":  "Impossible de supprimer le paquet « {{id}} »",
+                                      "builtinInvalid":  "Un paquet de composants intégré est invalide"
+                                  },
+                   "batchImport":  {
+                                       "duplicate":  "La cible existe déjà, ignorée : {{path}}",
+                                       "insertFailed":  "Échec de l'insertion : {{detail}}"
+                                   }
+               },
     "app":  {
                 "name":  "Centre de gestion de fichiers LNK",
                 "description":  "Une manière sûre et intelligente de gérer les raccourcis Windows"
@@ -89,6 +117,8 @@
                  "custom":  "Personnalisé"
              },
     "settings":  {
+                     "appearance":  "Apparence",
+                     "components":  "Paquets de composants",
                      "title":  "Paramètres",
                      "language":  "Langue",
                      "theme":  "Thème",
@@ -315,5 +345,66 @@
                             "renderLimit":  "Affichage des {{count}} premières lignes (total : {{total}})",
                             "empty":  "Aucune donnée",
                             "tooManyRetries":  "Trop de tentatives. Fermez et rouvrez la fenêtre pour réessayer."
-                        }
+                        },
+    "appearance":  {
+                       "title":  "Apparence",
+                       "description":  "Personnalisez la couleur d\u0027accent, la taille de police et les animations.",
+                       "accent":  "Couleur d\u0027accent",
+                       "fontSize":  "Taille de police",
+                       "reduceMotion":  "Réduire les animations",
+                       "reduceMotionDescription":  "Réduisez les transitions et les animations.",
+                       "reset":  "Rétablir les valeurs par défaut",
+                       "colors":  {
+                                      "blue":  "Bleu",
+                                      "violet":  "Violet",
+                                      "emerald":  "Émeraude",
+                                      "amber":  "Ambre",
+                                      "rose":  "Rose"
+                                  },
+                       "fontScales":  {
+                                          "small":  "Petit",
+                                          "normal":  "Normal",
+                                          "large":  "Grand"
+                                      }
+                   },
+    "components":  {
+                       "title":  "Paquets de composants",
+                       "description":  "Les paquets étendent les fonctionnalités de façon déclarative et peuvent être importés, exportés, activés ou désactivés. Les paquets intégrés ne peuvent pas être supprimés.",
+                       "import":  "Importer",
+                       "export":  "Exporter",
+                       "delete":  "Supprimer",
+                       "deleteConfirm":  "Supprimer le paquet « {{name}} » ? Cette action est irréversible.",
+                       "builtin":  "Intégré",
+                       "enabled":  "Activé",
+                       "disabled":  "Désactivé",
+                       "empty":  "Aucun paquet de composants",
+                       "guide":  "Guide de création",
+                       "guideTitle":  "Guide de création des paquets de composants",
+                       "componentCount":  "{{count}} composants",
+                       "importSuccess":  "Paquet « {{name}} » importé",
+                       "exportSuccess":  "Paquet « {{name}} » exporté",
+                       "loadFailed":  "Échec du chargement des paquets de composants",
+                       "dialogFilter":  "Paquet de composants (*.json)",
+                       "builtinPackages":  {
+                                               "appearance":  {
+                                                                  "name":  "Apparence classique",
+                                                                  "description":  "Accent bleu par défaut, taille de police normale et animations standard.",
+                                                                  "title":  "Bleu classique"
+                                                              },
+                                               "search":  {
+                                                              "name":  "Recherche équilibrée",
+                                                              "description":  "Tri par pertinence, 50 résultats par page et correspondance multilingue.",
+                                                              "title":  "Profil de recherche équilibré"
+                                                          },
+                                               "workflow":  {
+                                                                "name":  "Flux de lancement rapide",
+                                                                "description":  "Ajoute des actions rapides pour les tâches de maintenance courantes.",
+                                                                "title":  "Actions de maintenance",
+                                                                "actions":  {
+                                                                                "databasePreview":  "Aperçu de la base de données",
+                                                                                "rebuildIndex":  "Reconstruire l'index de recherche"
+                                                                            }
+                                                            }
+                                           }
+                   }
 }

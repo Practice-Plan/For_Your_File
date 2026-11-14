@@ -1,0 +1,10 @@
+{
+  "messageTitle": "For Your File",
+  "ppcStartFailed": "Failed to start PPC: {{detail}}",
+  "ppcTimeout": "PPC did not become ready within {{seconds}} seconds (port {{port}}).\nAllow the administrator prompt or start PPC manually.",
+  "appStartFailed": "Failed to start the application: {{detail}}",
+  "noAppData": "Cannot read the APPDATA environment variable",
+  "ppcNotFound": "PPC not found: {{path}}",
+  "noLauncherPath": "Cannot locate the launcher path: {{detail}}",
+  "noAppFound": "Main application not found. Keep fyf-launcher.exe next to the main executable."
+}

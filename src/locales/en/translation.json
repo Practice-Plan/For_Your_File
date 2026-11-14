@@ -1,4 +1,32 @@
-﻿{
+{
+    "errors":  {
+                   "unexpected":  "Unexpected error",
+                   "components":  {
+                                      "invalidJson":  "Invalid component package JSON",
+                                      "reservedId":  "Package id '{{id}}' is reserved by a built-in package",
+                                      "tooLarge":  "Package is too large ({{size}} bytes, max {{max}} bytes)",
+                                      "readFailed":  "Cannot read '{{path}}'",
+                                      "writeFailed":  "Failed to save package",
+                                      "notFound":  "Package '{{id}}' not found",
+                                      "builtinReadonly":  "Built-in packages cannot be deleted",
+                                      "notAFile":  "'{{path}}' is not a file",
+                                      "schemaUnsupported":  "Unsupported schema {{actual}} (expected {{expected}})",
+                                      "nameInvalid":  "Package name must be 1-100 characters",
+                                      "versionInvalid":  "Invalid version '{{version}}' (expected dotted numbers, e.g. 1.0.0)",
+                                      "kindUnsupported":  "Unsupported package kind '{{kind}}' (allowed: {{kinds}})",
+                                      "tooManyComponents":  "A package may contain at most {{max}} components",
+                                      "componentIdInvalid":  "Component id must be 1-64 characters",
+                                      "componentKindMissing":  "Component '{{id}}' is missing its kind",
+                                      "componentTooLarge":  "Component '{{id}}' config is too large ({{size}} bytes, max {{max}})",
+                                      "idInvalid":  "Invalid package id '{{id}}' (3-64 chars: a-z, 0-9, '.', '-', '_')",
+                                      "deleteFailed":  "Failed to delete package '{{id}}'",
+                                      "builtinInvalid":  "A built-in component package is invalid"
+                                  },
+                   "batchImport":  {
+                                       "duplicate":  "Target already exists, skipped: {{path}}",
+                                       "insertFailed":  "Insert failed: {{detail}}"
+                                   }
+               },
     "app":  {
                 "name":  "LNK File Management Center",
                 "description":  "A safe and intelligent way to manage Windows shortcuts"
@@ -125,7 +153,9 @@
                      "navigateDown":  "Navigate Down",
                      "openSelected":  "Open Selected",
                      "pressKeys":  "Press keys...",
-                     "shortcutsInfo":  "Keyboard shortcuts work on the main interface but their hints are hidden. Configure them here."
+                     "shortcutsInfo":  "Keyboard shortcuts work on the main interface but their hints are hidden. Configure them here.",
+                     "appearance":  "Appearance",
+                     "components":  "Components"
                  },
     "expiration":  {
                        "title":  "Expiration Reminders",
@@ -315,5 +345,66 @@
                             "renderLimit":  "Showing first {{count}} rows (total: {{total}})",
                             "empty":  "No data",
                             "tooManyRetries":  "Too many retries. Close and reopen the window to try again."
-                        }
+                        },
+    "appearance":  {
+                       "title":  "Appearance",
+                       "description":  "Adjust the accent color, font size and motion. Changes apply immediately and are stored locally.",
+                       "accent":  "Accent color",
+                       "fontSize":  "Font size",
+                       "reduceMotion":  "Reduce motion",
+                       "reduceMotionDescription":  "Turn off transitions and animations for a calmer interface.",
+                       "reset":  "Reset to defaults",
+                       "colors":  {
+                                      "blue":  "Blue",
+                                      "violet":  "Violet",
+                                      "emerald":  "Emerald",
+                                      "amber":  "Amber",
+                                      "rose":  "Rose"
+                                  },
+                       "fontScales":  {
+                                          "small":  "Small",
+                                          "normal":  "Normal",
+                                          "large":  "Large"
+                                      }
+                   },
+    "components":  {
+                       "title":  "Component Packages",
+                       "description":  "Component packages extend features declaratively and can be imported, exported, enabled or disabled. Built-in packages cannot be deleted.",
+                       "import":  "Import",
+                       "export":  "Export",
+                       "delete":  "Delete",
+                       "deleteConfirm":  "Delete component package \"{{name}}\"? This cannot be undone.",
+                       "builtin":  "Built-in",
+                       "enabled":  "Enabled",
+                       "disabled":  "Disabled",
+                       "empty":  "No component packages",
+                       "guide":  "Authoring guide",
+                       "guideTitle":  "Component package authoring guide",
+                       "componentCount":  "{{count}} components",
+                       "importSuccess":  "Imported component package \"{{name}}\"",
+                       "exportSuccess":  "Exported component package \"{{name}}\"",
+                       "loadFailed":  "Failed to load component packages",
+                       "dialogFilter":  "Component package (*.json)",
+                       "builtinPackages":  {
+                                       "appearance":  {
+                                                          "name":  "Classic Appearance",
+                                                          "description":  "Default blue accent, normal font scale and standard motion.",
+                                                          "title":  "Classic Blue"
+                                                      },
+                                       "search":  {
+                                                      "name":  "Balanced Search",
+                                                      "description":  "Relevance-first ordering with 50 results per page and multilingual matching.",
+                                                      "title":  "Balanced Search Profile"
+                                                  },
+                                       "workflow":  {
+                                                        "name":  "Quick Launch Workflow",
+                                                        "description":  "Adds ready-made quick actions for common maintenance tasks.",
+                                                        "title":  "Maintenance Quick Actions",
+                                                        "actions":  {
+                                                                        "databasePreview":  "Database Preview",
+                                                                        "rebuildIndex":  "Rebuild Search Index"
+                                                                    }
+                                                    }
+                                   }
+                   }
 }

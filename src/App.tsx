@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, Suspense, lazy } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { invoke } from '@tauri-apps/api/core'
+import i18n from './i18n'
 import { SearchBox } from './components/SearchBox'
 import { SearchResults } from './components/SearchResults'
 import { GroupList } from './components/GroupList'
@@ -25,6 +26,8 @@ const EditGroupModal = lazy(() => import('./components/EditGroupModal').then(m =
 const AboutModal = lazy(() => import('./components/AboutModal').then(m => ({ default: m.AboutModal })))
 const HotkeySettings = lazy(() => import('./components/HotkeySettings').then(m => ({ default: m.HotkeySettings })))
 const InterfaceShortcutSettings = lazy(() => import('./components/InterfaceShortcutSettings').then(m => ({ default: m.InterfaceShortcutSettings })))
+const AppearanceSettings = lazy(() => import('./components/AppearanceSettings').then(m => ({ default: m.AppearanceSettings })))
+const ComponentPackages = lazy(() => import('./components/ComponentPackages').then(m => ({ default: m.ComponentPackages })))
 
 const THEME_STORAGE_KEY = 'app-theme'
 
@@ -55,12 +58,23 @@ function App() {
   const { t } = useTranslation()
   const ppcConnectStartedRef = useRef(false)
 
+  // 语言切换时同步到后端，让托盘、PPC 错误与创作指南使用同一语言。
+  useEffect(() => {
+    const sync = (lang: string) => {
+      void invoke('set_app_language', { lang }).catch(console.warn)
+    }
+    sync(i18n.language)
+    i18n.on('languageChanged', sync)
+    return () => i18n.off('languageChanged', sync)
+  }, [])
+
   // Connect in the background so the main UI remains responsive while PPC is
   // checked, started through the user launch path, and authenticated.
   useEffect(() => {
     if (ppcConnectStartedRef.current) return
     ppcConnectStartedRef.current = true
     void invoke('ppc_connect_auto').catch((error) => {
+      // The Rust side already surfaces these failures through PPC itself.
       console.warn('PPC connection unavailable:', error)
     })
   }, [])
@@ -76,7 +90,7 @@ function App() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
   const [showAboutModal, setShowAboutModal] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<'hotkey' | 'shortcuts'>('hotkey')
+  const [settingsTab, setSettingsTab] = useState<'hotkey' | 'shortcuts' | 'appearance' | 'components'>('hotkey')
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null)
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null)
   const [groupSearchResults, setGroupSearchResults] = useState<SearchResultType[]>([])
@@ -753,7 +767,7 @@ function App() {
               exit={{ opacity: 0, scale: 0.95, y: -20 }}
               className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
             >
-              <div className="pointer-events-auto max-w-lg w-full mx-4 max-h-[85vh] flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+              <div className="pointer-events-auto max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
                 {/* Settings Header with Tabs */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -770,35 +784,32 @@ function App() {
                 </div>
                 {/* Tab Navigation */}
                 <div className="flex border-b border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => setSettingsTab('hotkey')}
-                    className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-                      settingsTab === 'hotkey'
-                        ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    {t('settings.hotkey')}
-                  </button>
-                  <button
-                    onClick={() => setSettingsTab('shortcuts')}
-                    className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-                      settingsTab === 'shortcuts'
-                        ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    {t('settings.interfaceShortcuts')}
-                  </button>
+                  {([
+                    { id: 'hotkey', label: t('settings.hotkey') },
+                    { id: 'shortcuts', label: t('settings.interfaceShortcuts') },
+                    { id: 'appearance', label: t('settings.appearance') },
+                    { id: 'components', label: t('settings.components') },
+                  ] as const).map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSettingsTab(tab.id)}
+                      className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
+                        settingsTab === tab.id
+                          ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
                 {/* Tab Content */}
                 <div className="flex-1 overflow-y-auto">
                   <Suspense fallback={null}>
-                    {settingsTab === 'hotkey' ? (
-                      <HotkeySettings />
-                    ) : (
-                      <InterfaceShortcutSettings />
-                    )}
+                    {settingsTab === 'hotkey' && <HotkeySettings />}
+                    {settingsTab === 'shortcuts' && <InterfaceShortcutSettings />}
+                    {settingsTab === 'appearance' && <AppearanceSettings />}
+                    {settingsTab === 'components' && <ComponentPackages />}
                   </Suspense>
                 </div>
               </div>

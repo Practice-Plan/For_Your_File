@@ -7,7 +7,7 @@
 [中文](README-zh.md) | [English](README.md) | [Français](README-fr.md) | Русский | [العربية](README-ar.md)
 
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
-![Version](https://img.shields.io/badge/Version-0.0.4-green.svg)
+![Version](https://img.shields.io/badge/Version-0.0.5-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6.svg)
 ![Rust](https://img.shields.io/badge/Rust-1.77.2+-orange.svg)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933.svg)

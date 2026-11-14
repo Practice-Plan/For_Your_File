@@ -1,4 +1,32 @@
-﻿{
+{
+    "errors":  {
+                   "unexpected":  "发生未知错误",
+                   "components":  {
+                                      "invalidJson":  "组件包 JSON 无效",
+                                      "reservedId":  "包 ID“{{id}}”为内置包保留",
+                                      "tooLarge":  "组件包过大（{{size}} 字节，上限 {{max}} 字节）",
+                                      "readFailed":  "无法读取“{{path}}”",
+                                      "writeFailed":  "组件包保存失败",
+                                      "notFound":  "未找到组件包“{{id}}”",
+                                      "builtinReadonly":  "内置组件包不可删除",
+                                      "notAFile":  "“{{path}}”不是文件",
+                                      "schemaUnsupported":  "不支持的格式版本 {{actual}}（应为 {{expected}}）",
+                                      "nameInvalid":  "包名称必须为 1-100 个字符",
+                                      "versionInvalid":  "版本“{{version}}”无效（应为点分数字，如 1.0.0）",
+                                      "kindUnsupported":  "不支持的包类型“{{kind}}”（可用：{{kinds}}）",
+                                      "tooManyComponents":  "一个包最多包含 {{max}} 个组件",
+                                      "componentIdInvalid":  "组件标识必须为 1-64 个字符",
+                                      "componentKindMissing":  "组件“{{id}}”缺少类型",
+                                      "componentTooLarge":  "组件“{{id}}”的配置过大（{{size}} 字节，上限 {{max}}）",
+                                      "idInvalid":  "包 ID“{{id}}”无效（3-64 个字符：a-z、0-9、'.'、'-'、'_'）",
+                                      "deleteFailed":  "无法删除组件包“{{id}}”",
+                                      "builtinInvalid":  "内置组件包内容无效"
+                                  },
+                   "batchImport":  {
+                                       "duplicate":  "目标路径已存在，跳过：{{path}}",
+                                       "insertFailed":  "插入失败：{{detail}}"
+                                   }
+               },
     "app":  {
                 "name":  "LNK 文件管理中心",
                 "description":  "安全智能的 Windows 快捷方式管理工具"
@@ -125,7 +153,9 @@
                      "navigateDown":  "向下导航",
                      "openSelected":  "打开选中项",
                      "pressKeys":  "按下按键...",
-                     "shortcutsInfo":  "键盘快捷键在主界面上有效但提示已隐藏。请在此处配置。"
+                     "shortcutsInfo":  "键盘快捷键在主界面上有效但提示已隐藏。请在此处配置。",
+                     "appearance":  "外观",
+                     "components":  "组件包"
                  },
     "expiration":  {
                        "title":  "过期提醒",
@@ -315,5 +345,66 @@
                             "renderLimit":  "显示前 {{count}} 行 (共 {{total}})",
                             "empty":  "暂无数据",
                             "tooManyRetries":  "重试次数过多。请关闭并重新打开窗口以重试。"
-                        }
+                        },
+    "appearance":  {
+                       "title":  "个性化外观",
+                       "description":  "调整强调色、字号与动画效果，设置会立即生效并保存在本机。",
+                       "accent":  "强调色",
+                       "fontSize":  "字号",
+                       "reduceMotion":  "减弱动效",
+                       "reduceMotionDescription":  "关闭界面过渡与动画，适合对动画敏感的场景。",
+                       "reset":  "恢复默认外观",
+                       "colors":  {
+                                      "blue":  "蓝色",
+                                      "violet":  "紫色",
+                                      "emerald":  "翠绿",
+                                      "amber":  "琥珀",
+                                      "rose":  "玫红"
+                                  },
+                       "fontScales":  {
+                                          "small":  "小",
+                                          "normal":  "标准",
+                                          "large":  "大"
+                                      }
+                   },
+    "components":  {
+                       "title":  "组件包",
+                       "description":  "组件包以声明方式扩展功能，可导入、导出与启停；内置包不可删除。",
+                       "import":  "导入",
+                       "export":  "导出",
+                       "delete":  "删除",
+                       "deleteConfirm":  "确定要删除组件包「{{name}}」吗？此操作无法撤销。",
+                       "builtin":  "内置",
+                       "enabled":  "已启用",
+                       "disabled":  "已停用",
+                       "empty":  "暂无组件包",
+                       "guide":  "创作指南",
+                       "guideTitle":  "组件包创作指南",
+                       "componentCount":  "{{count}} 个组件",
+                       "importSuccess":  "已导入组件包「{{name}}」",
+                       "exportSuccess":  "已导出组件包「{{name}}」",
+                       "loadFailed":  "组件包列表加载失败",
+                       "dialogFilter":  "组件包 (*.json)",
+                       "builtinPackages":  {
+                                       "appearance":  {
+                                                          "name":  "经典外观",
+                                                          "description":  "默认蓝色强调色、标准字号与常规动效。",
+                                                          "title":  "经典蓝"
+                                                      },
+                                       "search":  {
+                                                      "name":  "均衡搜索",
+                                                      "description":  "优先按相关度排序，每页 50 条，支持多语言匹配。",
+                                                      "title":  "均衡搜索方案"
+                                                  },
+                                       "workflow":  {
+                                                        "name":  "快捷启动工作流",
+                                                        "description":  "为常用维护操作提供预置快捷动作。",
+                                                        "title":  "维护快捷动作",
+                                                        "actions":  {
+                                                                        "databasePreview":  "数据库预览",
+                                                                        "rebuildIndex":  "重建搜索索引"
+                                                                    }
+                                                    }
+                                   }
+                   }
 }

@@ -29,6 +29,7 @@ import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import type { Entry } from '../types'
 import { TagEditor } from './TagEditor'
+import { toErrorMessage } from '../utils/reportError'
 
 type AddMode = 'application' | 'file' | 'folder'
 type OpenMethod = 'explorer' | 'app' | 'custom'
@@ -370,13 +371,26 @@ export function BatchImportModal({ isOpen, onClose, onCreated }: BatchImportModa
     try {
       const inputs = files.map(buildEntryInput)
       const CHUNK_SIZE = 20
-      const allResults: Array<{ success: boolean; error: string | null; entry_id: number | null; target_path: string }> = []
+      type BatchResult = {
+        success: boolean
+        error: string | null
+        error_code: string | null
+        error_params: Record<string, string | number> | null
+        entry_id: number | null
+        target_path: string
+      }
+      const allResults: BatchResult[] = []
       const allErrors: string[] = []
+      // 后端只返回错误码，这里统一翻译成当前语言。
+      const describe = (result: BatchResult) =>
+        result.error_code
+          ? t(`errors.${result.error_code}`, result.error_params ?? {})
+          : result.error ?? ''
 
       // Process in chunks for progress feedback
       for (let i = 0; i < inputs.length; i += CHUNK_SIZE) {
         const chunk = inputs.slice(i, i + CHUNK_SIZE)
-        const results = await invoke<Array<{ success: boolean; error: string | null; entry_id: number | null; target_path: string }>>(
+        const results = await invoke<BatchResult[]>(
           'batch_create_entries',
           { entries: chunk }
         )
@@ -384,8 +398,8 @@ export function BatchImportModal({ isOpen, onClose, onCreated }: BatchImportModa
 
         // Collect errors
         for (const r of results) {
-          if (!r.success && r.error) {
-            allErrors.push(r.error)
+          if (!r.success) {
+            allErrors.push(describe(r))
           }
         }
 
@@ -400,7 +414,7 @@ export function BatchImportModal({ isOpen, onClose, onCreated }: BatchImportModa
           return {
             ...f,
             status: result.success ? 'success' : 'error',
-            error: result.error || undefined,
+            error: result.success ? undefined : describe(result) || undefined,
           }
         }
         return f
@@ -426,7 +440,7 @@ export function BatchImportModal({ isOpen, onClose, onCreated }: BatchImportModa
       }
     } catch (err) {
       console.error('Batch import failed:', err)
-      setImportErrors([String(err)])
+      setImportErrors([toErrorMessage(err, t)])
     } finally {
       setIsImporting(false)
       setProgress(null)

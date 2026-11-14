@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "id": "fyf.appearance.classic",
+  "name": "Classic Appearance",
+  "name_key": "components.builtinPackages.appearance.name",
+  "version": "1.0.0",
+  "description": "Default blue accent, normal font scale and standard motion.",
+  "description_key": "components.builtinPackages.appearance.description",
+  "author": "Practice Plan",
+  "kind": "theme",
+  "components": [
+    {
+      "id": "appearance",
+      "kind": "theme",
+      "title": "Classic Blue",
+      "title_key": "components.builtinPackages.appearance.title",
+      "config": {
+        "accent": "blue",
+        "font_scale": "normal",
+        "reduce_motion": false
+      }
+    }
+  ]
+}

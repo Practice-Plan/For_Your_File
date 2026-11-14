@@ -1,0 +1,41 @@
+{
+  "tray": {
+    "show": "إظهار/إخفاء",
+    "quit": "خروج"
+  },
+  "errors": {
+    "unexpected": "خطأ غير متوقع",
+    "components": {
+      "invalidJson": "JSON حزمة المكونات غير صالح",
+      "reservedId": "المعرّف \"{{id}}\" محجوز لحزمة مضمّنة",
+      "tooLarge": "الحزمة كبيرة جداً ({{size}} بايت، الحد {{max}})",
+      "readFailed": "تعذّرت قراءة \"{{path}}\"",
+      "writeFailed": "تعذّر حفظ الحزمة",
+      "notFound": "لم يتم العثور على الحزمة \"{{id}}\"",
+      "builtinReadonly": "لا يمكن حذف الحزم المضمّنة",
+      "notAFile": "\"{{path}}\" ليس ملفاً",
+      "schemaUnsupported": "الصيغة {{actual}} غير مدعومة (المتوقع {{expected}})",
+      "nameInvalid": "يجب أن يتكون اسم الحزمة من 1 إلى 100 حرف",
+      "versionInvalid": "الإصدار \"{{version}}\" غير صالح (أرقام مفصولة بنقاط، مثل 1.0.0)",
+      "kindUnsupported": "نوع الحزمة \"{{kind}}\" غير مدعوم (المسموح: {{kinds}})",
+      "tooManyComponents": "يمكن أن تحتوي الحزمة على {{max}} مكوناً كحد أقصى",
+      "componentIdInvalid": "يجب أن يتكون معرّف المكوّن من 1 إلى 64 حرفاً",
+      "componentKindMissing": "نوع المكوّن \"{{id}}\" مفقود",
+      "componentTooLarge": "إعدادات المكوّن \"{{id}}\" كبيرة جداً ({{size}} بايت، الحد {{max}})",
+      "idInvalid": "معرّف الحزمة \"{{id}}\" غير صالح (3 إلى 64 حرفاً: a-z و0-9 و'.' و'-' و'_')",
+      "deleteFailed": "تعذّر حذف الحزمة \"{{id}}\"",
+      "builtinInvalid": "إحدى حزم المكونات المضمّنة غير صالحة"
+    },
+    "batchImport": {
+      "duplicate": "الهدف موجود مسبقاً، تم التخطي: {{path}}",
+      "insertFailed": "فشل الإدراج: {{detail}}"
+    },
+    "ppc": {
+      "notRunning": "PPC غير مشغّل. شغّل التطبيق عبر fyf-launcher.exe.",
+      "versionUnsupported": "إصدار PPC {{version}} غير مدعوم ({{min}}-{{max}})",
+      "versionCheckFailed": "تعذّر التحقق من إصدار PPC. راجع سجل PPC.",
+      "registerFailed": "فشل التسجيل في PPC ({{code}})",
+      "authFailed": "فشل مصادقة PPC ({{code}})"
+    }
+  }
+}

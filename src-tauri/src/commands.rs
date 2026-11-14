@@ -1606,6 +1606,10 @@ pub struct BatchEntryInput {
 pub struct BatchCreateResult {
     pub success: bool,
     pub error: Option<String>,
+    /// Stable error code for localization, e.g. `batchImport.duplicate`.
+    pub error_code: Option<String>,
+    /// Interpolation parameters for the error message.
+    pub error_params: Option<serde_json::Map<String, serde_json::Value>>,
     pub entry_id: Option<i64>,
     pub target_path: String,
 }
@@ -1678,7 +1682,11 @@ pub async fn batch_create_entries(
             );
             results.push(BatchCreateResult {
                 success: false,
-                error: Some(format!("目标路径已存在，跳过重复条目: {}", target_path)),
+                error: Some("batchImport.duplicate".to_string()),
+                error_code: Some("batchImport.duplicate".to_string()),
+                error_params: serde_json::json!({ "path": target_path })
+                    .as_object()
+                    .cloned(),
                 entry_id: None,
                 target_path,
             });
@@ -1730,6 +1738,8 @@ pub async fn batch_create_entries(
                 results.push(BatchCreateResult {
                     success: true,
                     error: None,
+                    error_code: None,
+                    error_params: None,
                     entry_id: Some(id),
                     target_path,
                 });
@@ -1747,7 +1757,11 @@ pub async fn batch_create_entries(
                 );
                 results.push(BatchCreateResult {
                     success: false,
-                    error: Some(format!("插入失败: {}", e)),
+                    error: Some("batchImport.insertFailed".to_string()),
+                    error_code: Some("batchImport.insertFailed".to_string()),
+                    error_params: serde_json::json!({ "detail": e.to_string() })
+                        .as_object()
+                        .cloned(),
                     entry_id: None,
                     target_path,
                 });
@@ -1803,7 +1817,8 @@ pub fn rebuild_fts_index(app_handle: AppHandle) -> Result<usize, String> {
             tags,
             notes,
             content='entries',
-            content_rowid='id'
+            content_rowid='id',
+            tokenize='unicode61 remove_diacritics 2'
         )
         "#,
         [],
@@ -1876,9 +1891,15 @@ pub fn rebuild_fts_index(app_handle: AppHandle) -> Result<usize, String> {
 
 /// Search entries by query with pagination.
 ///
-/// The query is sanitized for FTS5 MATCH syntax: each whitespace-separated
-/// token is treated as a prefix search (token*), and special FTS5 characters
-/// are escaped. This allows searching for file paths, names with dots, etc.
+/// Two complementary strategies keep search stable across languages:
+///
+/// - **ASCII/Latin queries** use the FTS5 index with per-token prefix matching
+///   and bm25 ranking — fast and tolerant of partial words.
+/// - **Non-ASCII queries** (Chinese, Japanese, Cyrillic, Arabic, …) and any
+///   query FTS5 cannot handle use a `LIKE` substring scan over every indexed
+///   column. `unicode61` has no CJK word segmentation, so this path is what
+///   makes CJK search work reliably; it also acts as a safety net when the FTS
+///   index is out of sync.
 #[tauri::command]
 pub fn search_entries(
     app_handle: AppHandle,
@@ -1889,25 +1910,29 @@ pub fn search_entries(
     let db_path = db::get_database_path(&app_handle)?;
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
+    let _ = conn.busy_timeout(std::time::Duration::from_secs(5));
 
     let offset_val = offset.unwrap_or(0).max(0);
     let limit_val = limit.unwrap_or(50).clamp(1, 100);
 
-    // Sanitize the query for FTS5 MATCH syntax.
-    // Split by whitespace, wrap each token in double quotes (escaping internal
-    // quotes), and append * for prefix matching. This handles special characters
-    // like . \ / - * ( ) : that FTS5 would otherwise treat as operators.
-    let fts_query: String = query
+    // Normalise the query: trim, drop control characters, de-duplicate tokens
+    // and cap the token count so a pathological query cannot build a huge SQL
+    // statement.
+    let tokens: Vec<String> = query
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect::<String>()
         .split_whitespace()
-        .map(|token| {
-            let escaped = token.replace('"', "\"\"");
-            format!("\"{}\"*", escaped)
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
+        .take(8)
+        .fold(Vec::<String>::new(), |mut acc, token| {
+            let token = token.trim();
+            if !token.is_empty() && !acc.iter().any(|t| t.eq_ignore_ascii_case(token)) {
+                acc.push(token.to_string());
+            }
+            acc
+        });
 
-    // If the sanitized query is empty, return no results
-    if fts_query.is_empty() {
+    if tokens.is_empty() {
         return Ok(PaginatedEntries {
             results: Vec::new(),
             total_count: 0,
@@ -1916,7 +1941,36 @@ pub fn search_entries(
         });
     }
 
-    // First get total count
+    // FTS5 for ASCII-only queries (see the doc comment above).
+    let ascii_only = tokens.iter().all(|token| token.is_ascii());
+    if ascii_only {
+        match search_entries_fts(&conn, &tokens, offset_val, limit_val) {
+            Ok(Some(result)) => return Ok(result),
+            Ok(None) => {}
+            Err(e) => log::warn!("FTS search failed, falling back to LIKE scan: {}", e),
+        }
+    }
+
+    search_entries_like(&conn, &tokens, offset_val, limit_val)
+}
+
+/// FTS5 prefix search. Returns `None` when the index has no match so the
+/// caller can retry with the `LIKE` scan.
+fn search_entries_fts(
+    conn: &rusqlite::Connection,
+    tokens: &[String],
+    offset_val: i64,
+    limit_val: i64,
+) -> Result<Option<PaginatedEntries>, String> {
+    // Wrap each token in double quotes (escaping internal quotes) and append *
+    // for prefix matching. This neutralises FTS5 operators such as . \ / - *
+    // that appear in file paths.
+    let fts_query = tokens
+        .iter()
+        .map(|token| format!("\"{}\"*", token.replace('"', "\"\"")))
+        .collect::<Vec<_>>()
+        .join(" ");
+
     let total_count: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM entries_fts WHERE entries_fts MATCH ?1",
@@ -1925,12 +1979,13 @@ pub fn search_entries(
         )
         .unwrap_or(0);
 
-    // Note: bm25() in SQLite FTS5 returns lower (more negative) values for BETTER
-    // matches. Using ASC puts the best matches first. The previous DESC ordering
-    // caused the best matches to appear last (or be cut off by pagination).
-    //
-    // IMPORTANT: bm25() and MATCH must reference the FTS5 table by its real name
-    // (entries_fts), not a FROM alias — SQLite FTS5 requires this.
+    if total_count == 0 {
+        return Ok(None);
+    }
+
+    // bm25() returns lower (more negative) values for better matches, so ASC
+    // puts the best matches first. id DESC is a stable tie-breaker that keeps
+    // pagination deterministic.
     let mut stmt = conn
         .prepare(
             r#"
@@ -1941,7 +1996,7 @@ pub fn search_entries(
             FROM entries_fts
             JOIN entries e ON e.id = entries_fts.rowid
             WHERE entries_fts MATCH ?1
-            ORDER BY bm25(entries_fts) ASC, e.frequency DESC
+            ORDER BY bm25(entries_fts) ASC, e.frequency DESC, e.id DESC
             LIMIT ?2 OFFSET ?3
             "#,
         )
@@ -1949,6 +2004,97 @@ pub fn search_entries(
 
     let entries = stmt
         .query_map(rusqlite::params![fts_query, limit_val, offset_val], |row| {
+            Entry::from_row(row)
+        })
+        .map_err(|e| format!("Failed to search entries: {}", e))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to collect search results: {}", e))?;
+
+    Ok(Some(PaginatedEntries {
+        results: entries,
+        total_count,
+        offset: offset_val,
+        limit: limit_val,
+    }))
+}
+
+/// Escape `LIKE` wildcards so user input is always treated literally.
+fn escape_like(input: &str) -> String {
+    input
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
+/// Substring scan used for non-ASCII text and as an FTS fallback.
+///
+/// Every token must match at least one of the indexed text columns (AND across
+/// tokens, OR across columns), which mirrors the FTS prefix behaviour closely
+/// enough while working for any Unicode script.
+fn search_entries_like(
+    conn: &rusqlite::Connection,
+    tokens: &[String],
+    offset_val: i64,
+    limit_val: i64,
+) -> Result<PaginatedEntries, String> {
+    const FIELDS: [&str; 5] = [
+        "e.lnk_path",
+        "e.target_path",
+        "e.description",
+        "e.tags",
+        "e.notes",
+    ];
+
+    let mut clauses: Vec<String> = Vec::with_capacity(tokens.len());
+    let mut params: Vec<rusqlite::types::Value> = Vec::new();
+
+    for token in tokens {
+        let pattern = format!("%{}%", escape_like(token));
+        let group = FIELDS
+            .iter()
+            .map(|field| format!("{} LIKE ? ESCAPE '\\'", field))
+            .collect::<Vec<_>>()
+            .join(" OR ");
+        clauses.push(format!("({})", group));
+        for _ in FIELDS {
+            params.push(rusqlite::types::Value::Text(pattern.clone()));
+        }
+    }
+
+    let where_clause = clauses.join(" AND ");
+
+    let count_sql = format!("SELECT COUNT(*) FROM entries e WHERE {}", where_clause);
+    let total_count: i64 = conn
+        .query_row(
+            &count_sql,
+            rusqlite::params_from_iter(params.iter()),
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let sql = format!(
+        r#"
+        SELECT e.id, e.lnk_path, e.target_path, e.parameters, e.working_dir,
+               e.description, e.icon_location, e.icon_index,
+               e.tags, e.notes, e.frequency, e.last_opened,
+               e.created_at, e.updated_at, e.expires_at
+        FROM entries e
+        WHERE {}
+        ORDER BY e.frequency DESC, e.last_opened DESC, e.id DESC
+        LIMIT ? OFFSET ?
+        "#,
+        where_clause
+    );
+
+    params.push(rusqlite::types::Value::Integer(limit_val));
+    params.push(rusqlite::types::Value::Integer(offset_val));
+
+    let mut stmt = conn
+        .prepare(&sql)
+        .map_err(|e| format!("Failed to prepare LIKE statement: {}", e))?;
+
+    let entries = stmt
+        .query_map(rusqlite::params_from_iter(params.iter()), |row| {
             Entry::from_row(row)
         })
         .map_err(|e| format!("Failed to search entries: {}", e))?

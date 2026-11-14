@@ -1,0 +1,10 @@
+{
+  "messageTitle": "For Your File",
+  "ppcStartFailed": "Échec du démarrage de PPC : {{detail}}",
+  "ppcTimeout": "PPC n'a pas été prêt dans les {{seconds}} secondes (port {{port}}).\nAutorisez la demande d'administrateur ou démarrez PPC manuellement.",
+  "appStartFailed": "Échec du démarrage de l'application : {{detail}}",
+  "noAppData": "Impossible de lire la variable d'environnement APPDATA",
+  "ppcNotFound": "PPC introuvable : {{path}}",
+  "noLauncherPath": "Impossible de localiser le chemin du lanceur : {{detail}}",
+  "noAppFound": "Application principale introuvable. Placez fyf-launcher.exe à côté de l'exécutable principal."
+}

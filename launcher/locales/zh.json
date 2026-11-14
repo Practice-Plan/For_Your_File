@@ -1,0 +1,10 @@
+{
+  "messageTitle": "For Your File",
+  "ppcStartFailed": "PPC 启动失败：{{detail}}",
+  "ppcTimeout": "PPC 在 {{seconds}} 秒内未能就绪（端口 {{port}}）。\n请允许管理员授权，或手动运行 PPC。",
+  "appStartFailed": "主程序启动失败：{{detail}}",
+  "noAppData": "无法读取 APPDATA 环境变量",
+  "ppcNotFound": "未找到 PPC：{{path}}",
+  "noLauncherPath": "无法定位启动器路径：{{detail}}",
+  "noAppFound": "未找到主程序，请将 fyf-launcher.exe 与主程序放在同一目录"
+}

@@ -335,6 +335,27 @@ npm run type-check
 }
 ```
 
+### Internationalization
+
+All user-visible text must come from translation resources. Never write a
+literal string in a language inside code, and never branch on the language to
+pick a literal.
+
+- **Frontend** (`src/**`): use `t('namespace.key')`; add keys to all five files
+  under `src/locales/{en,zh,fr,ru,ar}/translation.json`. `en` is the reference,
+  and `npm run i18n:check` fails when key sets diverge.
+- **Backend** (`src-tauri/**`): never return sentence text. Return
+  `AppError { code, params }` and add the message under `errors.*` in
+  `src-tauri/locales/*.json` and `src/locales/*/translation.json`.
+- **Launcher** (`launcher/**`): use `tr('key', ...)`; text lives in
+  `launcher/locales/*.json`.
+- **Docs** (authoring guide): keep one file per language under
+  `docs/tech/component-packages/`. Missing languages fall back to English.
+- **Comments** may explain intent in any language (Chinese is fine). Comments
+  are not rendered and the guard script ignores them, but string literals are
+  always scanned.
+- Run `npm run i18n:check` before opening a PR; CI enforces it.
+
 ## Commit Message Format
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/).

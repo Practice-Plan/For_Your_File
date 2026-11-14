@@ -28,6 +28,13 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
     conn.execute("PRAGMA foreign_keys = ON", [])
         .map_err(|e| format!("Failed to enable foreign keys: {}", e))?;
 
+    // WAL keeps reads (search) responsive while writes (add/update/delete)
+    // are in flight, and the busy timeout prevents spurious SQLITE_BUSY
+    // errors when the FTS triggers and the UI overlap.
+    let _ = conn.query_row("PRAGMA journal_mode=WAL", [], |row| row.get::<_, String>(0));
+    conn.busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|e| format!("Failed to set busy timeout: {}", e))?;
+
     // --- Tables ---
     // entries: lnk_path is nullable to allow saving entry info without a .lnk file (Task 7).
     // UNIQUE on lnk_path is dropped to avoid conflicts with empty strings; multiple NULL/empty
@@ -86,6 +93,9 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
 
     // FTS5 virtual table for full-text search over entry content.
     // Includes `description` (the user-entered entry name) so searching by name works.
+    //
+    // `remove_diacritics 2` makes accented Latin text match unaccented queries
+    // (e.g. "cafe" finds "café"), which also stabilises search across locales.
     conn.execute(
         r#"
         CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
@@ -95,7 +105,8 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
             tags,
             notes,
             content='entries',
-            content_rowid='id'
+            content_rowid='id',
+            tokenize='unicode61 remove_diacritics 2'
         )
         "#,
         [],
@@ -106,6 +117,9 @@ pub fn init_database(app_handle: &AppHandle) -> Result<(), String> {
     // Older versions of the app created entries_fts without `description`.
     // We detect this by checking the FTS schema and rebuild if needed.
     migrate_fts_if_needed(&conn)?;
+
+    // --- Migration: apply the diacritics-aware tokenizer to older indexes ---
+    migrate_fts_tokenizer(&conn)?;
 
     // --- Indexes ---
     let indexes = [
@@ -275,7 +289,8 @@ fn migrate_fts_if_needed(conn: &Connection) -> Result<(), String> {
             tags,
             notes,
             content='entries',
-            content_rowid='id'
+            content_rowid='id',
+            tokenize='unicode61 remove_diacritics 2'
         )
         "#,
         [],
@@ -295,5 +310,66 @@ fn migrate_fts_if_needed(conn: &Connection) -> Result<(), String> {
     .map_err(|e| format!("Failed to rebuild FTS index: {}", e))?;
 
     log::info!("FTS migration complete: entries_fts now includes description");
+    Ok(())
+}
+
+/// Rebuild `entries_fts` when it was created by an older release without the
+/// diacritics-aware tokenizer.
+///
+/// The index is derived data, so dropping and re-indexing is always safe.
+/// Triggers are recreated later in `init_database`.
+fn migrate_fts_tokenizer(conn: &Connection) -> Result<(), String> {
+    let sql_text: Option<String> = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='entries_fts'",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let Some(sql) = sql_text else {
+        return Ok(());
+    };
+    if sql.to_lowercase().contains("remove_diacritics") {
+        return Ok(());
+    }
+
+    log::info!("Migrating entries_fts tokenizer to unicode61 remove_diacritics 2...");
+
+    for trigger in ["entries_ai", "entries_ad", "entries_au"] {
+        conn.execute(&format!("DROP TRIGGER IF EXISTS {}", trigger), [])
+            .map_err(|e| format!("Failed to drop trigger {}: {}", trigger, e))?;
+    }
+
+    conn.execute("DROP TABLE IF EXISTS entries_fts", [])
+        .map_err(|e| format!("Failed to drop entries_fts: {}", e))?;
+
+    conn.execute(
+        r#"
+        CREATE VIRTUAL TABLE entries_fts USING fts5(
+            lnk_path,
+            target_path,
+            description,
+            tags,
+            notes,
+            content='entries',
+            content_rowid='id',
+            tokenize='unicode61 remove_diacritics 2'
+        )
+        "#,
+        [],
+    )
+    .map_err(|e| format!("Failed to recreate entries_fts: {}", e))?;
+
+    conn.execute(
+        r#"
+        INSERT INTO entries_fts(rowid, lnk_path, target_path, description, tags, notes)
+        SELECT id, lnk_path, target_path, description, tags, notes FROM entries
+        "#,
+        [],
+    )
+    .map_err(|e| format!("Failed to rebuild FTS index: {}", e))?;
+
+    log::info!("FTS tokenizer migration complete");
     Ok(())
 }

@@ -1,7 +1,7 @@
 {
   "name": "lnk-file-management-center",
   "private": true,
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "GPL-3.0",
   "type": "module",
   "scripts": {
@@ -9,7 +9,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "i18n:check": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

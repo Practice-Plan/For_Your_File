@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="For_Your_File banner (print)">
+  <defs>
+    <!-- 黑白打印版：无渐变 / 无滤镜 / 无透明度 -->
+  </defs>
+
+  <!-- 白底 + 黑色边框（打印留边清晰） -->
+  <rect x="0" y="0" width="1280" height="360" rx="16" fill="#FFFFFF"/>
+  <rect x="6" y="6" width="1268" height="348" rx="12" fill="none" stroke="#000000" stroke-width="3"/>
+
+  <!-- Logo：黑白线稿版 -->
+  <g transform="translate(84, 70) scale(0.43)">
+    <!-- 圆角底板：白底黑框 -->
+    <rect x="16" y="16" width="480" height="480" rx="116" fill="#FFFFFF" stroke="#000000" stroke-width="14"/>
+    <!-- 文档：黑框白底 -->
+    <rect x="150" y="118" width="200" height="262" rx="26" fill="#FFFFFF" stroke="#000000" stroke-width="12"/>
+    <!-- 文档内文字行：实色黑条，粗细交替保证灰度对比 -->
+    <rect x="190" y="170" width="120" height="18" rx="4" fill="#000000"/>
+    <rect x="190" y="212" width="120" height="18" rx="4" fill="#000000"/>
+    <rect x="190" y="254" width="120" height="18" rx="4" fill="#000000"/>
+    <rect x="190" y="296" width="78"  height="18" rx="4" fill="#000000"/>
+    <!-- 上传箭头：实心黑，加白描边与文档线条分离 -->
+    <g transform="rotate(45 280 240)">
+      <rect x="265" y="185" width="30" height="125" rx="8" fill="#000000" stroke="#FFFFFF" stroke-width="6"/>
+      <path d="M 232 196 L 328 196 L 280 108 Z" fill="#000000" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+    </g>
+    <!-- 角落装饰点：实黑 -->
+    <circle cx="392" cy="104" r="12" fill="#000000"/>
+    <circle cx="420" cy="140" r="6"  fill="#000000"/>
+    <circle cx="368" cy="76"  r="5"  fill="#000000"/>
+  </g>
+
+  <!-- 文字区：全黑、加粗、增大字号 -->
+  <text x="372" y="130" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="30" letter-spacing="6" fill="#000000">LNK FILE MANAGEMENT CENTER</text>
+  <text x="368" y="216" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="92" fill="#000000">For_Your_File</text>
+  <text x="372" y="268" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="30" fill="#000000">For your files, it's made for managing your file better.</text>
+
+</svg>

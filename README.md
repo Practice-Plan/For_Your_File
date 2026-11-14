@@ -7,7 +7,7 @@
 [中文](README-zh.md) | English | [Français](README-fr.md) | [Русский](README-ru.md) | [العربية](README-ar.md)
 
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
-![Version](https://img.shields.io/badge/Version-0.0.4-green.svg)
+![Version](https://img.shields.io/badge/Version-0.0.5-green.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6.svg)
 ![Rust](https://img.shields.io/badge/Rust-1.77.2+-orange.svg)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933.svg)
@@ -28,7 +28,9 @@ LNK File Management Center helps you manage Windows shortcut files (.lnk) in one
 - **🎨 Theme switching** — Light/dark themes with user preference persistence
 - **🖱️ Context menu integration** — Windows Explorer right-click menu integration for fast add actions
 - **🔗 Deep links** — `filemgmt://` protocol support for add/open/search/settings
-- **🧩 PPC integration** — Connects to the PPC central processing system (v0.0.7) with error-code mapping
+- **🧩 PPC integration** — Connects to the PPC central processing system (v0.0.9–v0.1.1) with error-code mapping; PPC is started by the bundled Go launcher
+- **🧱 Component packages** — Declarative JSON packages for appearance, search and workflow features, with import/export, built-in defaults and an authoring guide
+- **🎛️ Personalization** — Accent color, font size and reduced-motion options applied instantly
 - **🖥️ System tray** — Hide to tray on close, with hotkey/tray actions to bring the app back
 
 ## 🛠️ Tech stack

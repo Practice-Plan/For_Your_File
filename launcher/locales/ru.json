@@ -1,0 +1,10 @@
+{
+  "messageTitle": "For Your File",
+  "ppcStartFailed": "Не удалось запустить PPC: {{detail}}",
+  "ppcTimeout": "PPC не стал готов за {{seconds}} секунд (порт {{port}}).\nРазрешите запрос администратора или запустите PPC вручную.",
+  "appStartFailed": "Не удалось запустить приложение: {{detail}}",
+  "noAppData": "Не удалось прочитать переменную среды APPDATA",
+  "ppcNotFound": "PPC не найден: {{path}}",
+  "noLauncherPath": "Не удалось определить путь к лаунчеру: {{detail}}",
+  "noAppFound": "Основное приложение не найдено. Разместите fyf-launcher.exe рядом с основным исполняемым файлом."
+}

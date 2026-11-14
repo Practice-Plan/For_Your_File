@@ -1,0 +1,41 @@
+{
+  "tray": {
+    "show": "Show/Hide",
+    "quit": "Quit"
+  },
+  "errors": {
+    "unexpected": "Unexpected error",
+    "components": {
+      "invalidJson": "Invalid component package JSON",
+      "reservedId": "Package id '{{id}}' is reserved by a built-in package",
+      "tooLarge": "Package is too large ({{size}} bytes, max {{max}} bytes)",
+      "readFailed": "Cannot read '{{path}}'",
+      "writeFailed": "Failed to save package",
+      "notFound": "Package '{{id}}' not found",
+      "builtinReadonly": "Built-in packages cannot be deleted",
+      "notAFile": "'{{path}}' is not a file",
+      "schemaUnsupported": "Unsupported schema {{actual}} (expected {{expected}})",
+      "nameInvalid": "Package name must be 1-100 characters",
+      "versionInvalid": "Invalid version '{{version}}' (expected dotted numbers, e.g. 1.0.0)",
+      "kindUnsupported": "Unsupported package kind '{{kind}}' (allowed: {{kinds}})",
+      "tooManyComponents": "A package may contain at most {{max}} components",
+      "componentIdInvalid": "Component id must be 1-64 characters",
+      "componentKindMissing": "Component '{{id}}' is missing its kind",
+      "componentTooLarge": "Component '{{id}}' config is too large ({{size}} bytes, max {{max}})",
+      "idInvalid": "Invalid package id '{{id}}' (3-64 chars: a-z, 0-9, '.', '-', '_')",
+      "deleteFailed": "Failed to delete package '{{id}}'",
+      "builtinInvalid": "A built-in component package is invalid"
+    },
+    "batchImport": {
+      "duplicate": "Target already exists, skipped: {{path}}",
+      "insertFailed": "Insert failed: {{detail}}"
+    },
+    "ppc": {
+      "notRunning": "PPC is not running. Start the app through fyf-launcher.exe.",
+      "versionUnsupported": "PPC version {{version}} is not supported ({{min}}-{{max}})",
+      "versionCheckFailed": "Unable to verify the PPC version. Check the PPC log.",
+      "registerFailed": "PPC registration failed ({{code}})",
+      "authFailed": "PPC authentication failed ({{code}})"
+    }
+  }
+}

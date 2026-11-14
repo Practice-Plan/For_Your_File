@@ -141,6 +141,45 @@ npm run build
 > `tauri.conf.json`. If an installer is needed, set `"active": true` and
 > `"targets": ["nsis"]` locally — do NOT commit that change.
 
+### Go Launcher (v0.0.5+)
+
+Since v0.0.5 the PPC daemon is started by a small Go launcher instead of the
+Tauri process. Build it separately and ship it next to the main executable:
+
+```powershell
+.\launcher\build.ps1                    # 64-bit → launcher\fyf-launcher.exe
+.\launcher\build.ps1 -Arch 386          # 32-bit → launcher\fyf-launcher32.exe
+.\launcher\build.ps1 -Arch 386 -Name fyf-launcher.exe   # 32-bit package naming
+```
+
+The launcher probes `127.0.0.1:9527`, starts the PPC binary matching its own
+architecture (`%APPDATA%\wang.station\ppc.exe` on amd64, `ppc32.exe` on 386),
+waits for the port, then forwards all arguments to the main executable. Errors
+are reported through PPC's `WINDOW ERROR`; a MessageBox is used only when PPC
+itself is unreachable.
+
+The icon and version metadata are embedded from the pre-generated
+`launcher\rsrc_windows_{amd64,386}.syso` files (built by `go-winres` from
+`src-tauri/icons/icon.ico`). Regenerate them when the icon or version changes:
+
+```powershell
+go-winres simply --icon ..\src-tauri\icons\icon.ico --manifest gui `
+  --product-name "For Your File Launcher" --file-description "For Your File Launcher" `
+  --product-version 0.0.5 --file-version 0.0.5 --arch amd64,386
+```
+
+### 32-bit / 64-bit builds
+
+| Target | Main app command | Output | Launcher |
+|--------|------------------|--------|----------|
+| 64-bit | `npx tauri build --target x86_64-pc-windows-msvc` | `target\x86_64-pc-windows-msvc\release\app.exe` | `.\launcher\build.ps1` |
+| 32-bit | `npx tauri build --target i686-pc-windows-msvc` | `target\i686-pc-windows-msvc\release\app.exe` | `.\launcher\build.ps1 -Arch 386` |
+
+32-bit builds require the Rust target (`rustup target add i686-pc-windows-msvc`)
+and the MSVC x86 toolchain. PPC ships both `ppc.exe` (x64) and `ppc32.exe` (x86)
+and they are mutually exclusive on port 9527, so only one launcher flavour may
+run at a time.
+
 ### CI Build Pipeline
 
 `.github/workflows/ci.yml` runs a single `check` job on every push/PR:
@@ -149,6 +188,7 @@ npm run build
 |------|---------|---------|
 | Version sync | PowerShell assert | Verify package.json / Cargo.toml / tauri.conf.json all match |
 | Type-check | `npm run type-check` | Zero TypeScript errors |
+| Go launcher | `go vet` + `go build` in `launcher/` | Launcher compiles |
 | Rust tests | `cargo test --verbose` | All unit tests pass |
 | Lint | `cargo clippy -- -D warnings` | Zero clippy warnings |
 | Format | `cargo fmt -- --check` | Code style correct |

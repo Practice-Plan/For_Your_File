@@ -35,10 +35,24 @@ jobs:
           $packageVersion = (Get-Content package.json | ConvertFrom-Json).version
           $cargoVersion = (Select-String -Path src-tauri/Cargo.toml -Pattern '^version = "([^"]+)"$').Matches.Groups[1].Value
           $tauriVersion = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
-          if ($packageVersion -ne '0.0.4' -or $cargoVersion -ne '0.0.4' -or $tauriVersion -ne '0.0.4') { throw "Release versions are not synchronized" }
+          if (-not $packageVersion -or $packageVersion -ne $cargoVersion -or $packageVersion -ne $tauriVersion) {
+            throw "Release versions are not synchronized: package=$packageVersion cargo=$cargoVersion tauri=$tauriVersion"
+          }
+          Write-Host "Release version: $packageVersion"
+
+      - name: Check i18n resources
+        run: npm run i18n:check
 
       - name: Type-check frontend
         run: npm run type-check
+
+      - name: Build Go launcher (amd64)
+        shell: pwsh
+        run: pwsh -File launcher\build.ps1 -Arch amd64
+
+      - name: Build Go launcher (i686)
+        shell: pwsh
+        run: pwsh -File launcher\build.ps1 -Arch 386 -Name fyf-launcher32.exe
 
       - name: Cache cargo registry
         uses: actions/cache@v4

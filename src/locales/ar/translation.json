@@ -1,4 +1,32 @@
 ﻿{
+    "errors":  {
+                   "unexpected":  "خطأ غير متوقع",
+                   "components":  {
+                                      "invalidJson":  "JSON حزمة المكونات غير صالح",
+                                      "reservedId":  "المعرّف \"{{id}}\" محجوز لحزمة مضمّنة",
+                                      "tooLarge":  "الحزمة كبيرة جداً ({{size}} بايت، الحد {{max}})",
+                                      "readFailed":  "تعذّرت قراءة \"{{path}}\"",
+                                      "writeFailed":  "تعذّر حفظ الحزمة",
+                                      "notFound":  "لم يتم العثور على الحزمة \"{{id}}\"",
+                                      "builtinReadonly":  "لا يمكن حذف الحزم المضمّنة",
+                                      "notAFile":  "\"{{path}}\" ليس ملفاً",
+                                      "schemaUnsupported":  "الصيغة {{actual}} غير مدعومة (المتوقع {{expected}})",
+                                      "nameInvalid":  "يجب أن يتكون اسم الحزمة من 1 إلى 100 حرف",
+                                      "versionInvalid":  "الإصدار \"{{version}}\" غير صالح (أرقام مفصولة بنقاط، مثل 1.0.0)",
+                                      "kindUnsupported":  "نوع الحزمة \"{{kind}}\" غير مدعوم (المسموح: {{kinds}})",
+                                      "tooManyComponents":  "يمكن أن تحتوي الحزمة على {{max}} مكوناً كحد أقصى",
+                                      "componentIdInvalid":  "يجب أن يتكون معرّف المكوّن من 1 إلى 64 حرفاً",
+                                      "componentKindMissing":  "نوع المكوّن \"{{id}}\" مفقود",
+                                      "componentTooLarge":  "إعدادات المكوّن \"{{id}}\" كبيرة جداً ({{size}} بايت، الحد {{max}})",
+                                      "idInvalid":  "معرّف الحزمة \"{{id}}\" غير صالح (3 إلى 64 حرفاً: a-z و0-9 و'.' و'-' و'_')",
+                                      "deleteFailed":  "تعذّر حذف الحزمة \"{{id}}\"",
+                                      "builtinInvalid":  "إحدى حزم المكونات المضمّنة غير صالحة"
+                                  },
+                   "batchImport":  {
+                                       "duplicate":  "الهدف موجود مسبقاً، تم التخطي: {{path}}",
+                                       "insertFailed":  "فشل الإدراج: {{detail}}"
+                                   }
+               },
     "app":  {
                 "name":  "مركز إدارة ملفات LNK",
                 "description":  "طريقة آمنة وذكية لإدارة اختصارات Windows"
@@ -89,6 +117,8 @@
                  "custom":  "مخصص"
              },
     "settings":  {
+                     "appearance":  "المظهر",
+                     "components":  "حزم المكونات",
                      "title":  "الإعدادات",
                      "language":  "اللغة",
                      "theme":  "السمة",
@@ -315,5 +345,66 @@
                             "renderLimit":  "عرض أول {{count}} صفوف (المجموع: {{total}})",
                             "empty":  "لا توجد بيانات",
                             "tooManyRetries":  "عدد محاولات زائد. أغلق النافذة وأعد فتحها للمحاولة مرة أخرى."
-                        }
+                        },
+    "appearance":  {
+                       "title":  "المظهر",
+                       "description":  "خصّص لون التمييز وحجم الخط والحركة.",
+                       "accent":  "لون التمييز",
+                       "fontSize":  "حجم الخط",
+                       "reduceMotion":  "تقليل الحركة",
+                       "reduceMotionDescription":  "قلّل الانتقالات والحركات.",
+                       "reset":  "إعادة التعيين",
+                       "colors":  {
+                                      "blue":  "أزرق",
+                                      "violet":  "بنفسجي",
+                                      "emerald":  "زمردي",
+                                      "amber":  "كهرماني",
+                                      "rose":  "وردي"
+                                  },
+                       "fontScales":  {
+                                          "small":  "صغير",
+                                          "normal":  "عادي",
+                                          "large":  "كبير"
+                                      }
+                   },
+    "components":  {
+                       "title":  "حزم المكونات",
+                       "description":  "توسّع الحزم الميزات تصريحياً، ويمكن استيرادها وتصديرها وتفعيلها أو تعطيلها. لا يمكن حذف الحزم المضمّنة.",
+                       "import":  "استيراد",
+                       "export":  "تصدير",
+                       "delete":  "حذف",
+                       "deleteConfirm":  "حذف حزمة \"{{name}}\"؟ لا يمكن التراجع عن هذا الإجراء.",
+                       "builtin":  "مضمّن",
+                       "enabled":  "مفعّل",
+                       "disabled":  "معطّل",
+                       "empty":  "لا توجد حزم مكونات",
+                       "guide":  "دليل الإنشاء",
+                       "guideTitle":  "دليل إنشاء حزم المكونات",
+                       "componentCount":  "{{count}} مكونات",
+                       "importSuccess":  "تم استيراد حزمة \"{{name}}\"",
+                       "exportSuccess":  "تم تصدير حزمة \"{{name}}\"",
+                       "loadFailed":  "تعذّر تحميل حزم المكونات",
+                       "dialogFilter":  "حزمة مكونات (*.json)",
+                       "builtinPackages":  {
+                                               "appearance":  {
+                                                                  "name":  "المظهر الكلاسيكي",
+                                                                  "description":  "لون تمييز أزرق افتراضي وحجم خط عادي وحركة قياسية.",
+                                                                  "title":  "الأزرق الكلاسيكي"
+                                                              },
+                                               "search":  {
+                                                              "name":  "بحث متوازن",
+                                                              "description":  "ترتيب حسب الصلة، 50 نتيجة في الصفحة ومطابقة متعددة اللغات.",
+                                                              "title":  "ملف البحث المتوازن"
+                                                          },
+                                               "workflow":  {
+                                                                "name":  "سير العمل السريع",
+                                                                "description":  "يضيف إجراءات سريعة جاهزة لمهام الصيانة الشائعة.",
+                                                                "title":  "إجراءات الصيانة",
+                                                                "actions":  {
+                                                                                "databasePreview":  "معاينة قاعدة البيانات",
+                                                                                "rebuildIndex":  "إعادة بناء فهرس البحث"
+                                                                            }
+                                                            }
+                                           }
+                   }
 }

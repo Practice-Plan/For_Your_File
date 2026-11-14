@@ -3,6 +3,7 @@
 Cargo.lock
 dist/
 node_modules/
+superpowers/
 
 # IDE
 .idea/

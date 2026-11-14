@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "id": "fyf.workflow.quicklaunch",
+  "name": "Quick Launch Workflow",
+  "name_key": "components.builtinPackages.workflow.name",
+  "version": "1.0.0",
+  "description": "Adds ready-made quick actions for common maintenance tasks.",
+  "description_key": "components.builtinPackages.workflow.description",
+  "author": "Practice Plan",
+  "kind": "workflow",
+  "components": [
+    {
+      "id": "quick-actions",
+      "kind": "workflow",
+      "title": "Maintenance Quick Actions",
+      "title_key": "components.builtinPackages.workflow.title",
+      "config": {
+        "actions": [
+          {
+            "id": "database-preview",
+            "title": "Database Preview",
+            "title_key": "components.builtinPackages.workflow.actions.databasePreview",
+            "command": "open_database_preview"
+          },
+          {
+            "id": "rebuild-index",
+            "title": "Rebuild Search Index",
+            "title_key": "components.builtinPackages.workflow.actions.rebuildIndex",
+            "command": "rebuild_fts_index"
+          }
+        ]
+      }
+    }
+  ]
+}

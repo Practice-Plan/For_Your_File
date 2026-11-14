@@ -3,10 +3,15 @@
 //! Connects the For_Your_File application to the PPC Central Processing System
 //! running on 127.0.0.1:9527. Handles:
 //! - TCP connection management
-//! - App registration (REGISTER_APP) and authentication (AUTH)
-//! - PPC version verification (must be exactly 0.0.7)
+//! - App registration (REGISTER_APP) and optional authentication (AUTH)
+//! - PPC version verification (v0.0.9 ~ v0.1.1)
 //! - PPC error code mapping to human-readable messages
 //! - Command sending and response parsing
+//!
+//! Since v0.0.5 the PPC process is started by the standalone launcher
+//! (`launcher/`, written in Go) instead of this module. The app only connects,
+//! and every user-facing error is surfaced through PPC's `WINDOW ERROR`
+//! command — there is deliberately no in-app fallback dialog.
 //!
 //! This module does NOT modify any PPC source files. It acts purely as a
 //! client that communicates with PPC over TCP.
@@ -35,7 +40,11 @@ const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Minimum supported PPC version.
 const PPC_MIN_VERSION: &str = "0.0.9";
 /// Maximum supported PPC version.
-const PPC_MAX_VERSION: &str = "0.1.0";
+///
+/// v0.1.1 is the current stable PPC release: tray/terminal dual mode,
+/// `ppc`/`ppc32` mutual exclusion, per-session logging and globally relaxed
+/// signatures. `AUTH` remains supported but is optional there.
+const PPC_MAX_VERSION: &str = "0.1.1";
 
 /// TCP read/write timeout in seconds.
 const TIMEOUT_SECS: u64 = 5;
@@ -183,7 +192,7 @@ fn parse_version(v: &str) -> Vec<u32> {
 }
 
 /// Check if a PPC version is within the supported range.
-/// Min = 0.0.7, Max = 0.0.9 (only versions between 0.0.7 and 0.0.9 are supported).
+/// Only versions between 0.0.9 and 0.1.1 are supported.
 pub fn is_version_supported(version: &str) -> bool {
     let v = parse_version(version);
     let min = parse_version(PPC_MIN_VERSION);
@@ -298,14 +307,25 @@ pub fn authenticate_with_ppc(hash: &str) -> Result<(), String> {
     }
 }
 
+/// PPC 版本检查失败的原因。
+pub enum PpcVersionError {
+    /// PPC 返回了不受支持的版本号。
+    Unsupported(String),
+    /// 无法查询或解析版本（诊断信息仅用于日志）。
+    Query(String),
+}
+
 /// Query the PPC version and verify it's within the supported range.
-pub fn check_ppc_version() -> Result<String, String> {
-    let response = send_command("PPCVERSION")?;
+pub fn check_ppc_version() -> Result<String, PpcVersionError> {
+    let response = send_command("PPCVERSION").map_err(PpcVersionError::Query)?;
     let code = parse_status_code(&response).unwrap_or_default();
 
     if !is_success_code(&code) {
-        let msg = map_ppc_code(&code);
-        return Err(format!("Failed to query PPC version: {} ({})", msg, code));
+        return Err(PpcVersionError::Query(format!(
+            "Failed to query PPC version: {} ({})",
+            map_ppc_code(&code),
+            code
+        )));
     }
 
     // Response format: "0x00000\nPPC Version: 0.0.7\n"
@@ -318,14 +338,14 @@ pub fn check_ppc_version() -> Result<String, String> {
         .to_string();
 
     if version.is_empty() {
-        return Err(format!("Cannot parse PPC version: {}", response));
+        return Err(PpcVersionError::Query(format!(
+            "Cannot parse PPC version: {}",
+            response
+        )));
     }
 
     if !is_version_supported(&version) {
-        return Err(format!(
-            "PPC version {} not in supported range (only {}~{})",
-            version, PPC_MIN_VERSION, PPC_MAX_VERSION
-        ));
+        return Err(PpcVersionError::Unsupported(version));
     }
 
     log::info!("PPC version check passed: {}", version);
@@ -508,72 +528,21 @@ pub fn resolve_data_dir(app_handle: &tauri::AppHandle) -> Result<std::path::Path
 }
 
 // ---------------------------------------------------------------------------
-// PPC launcher
+// Error reporting (PPC-only, no fallback)
 // ---------------------------------------------------------------------------
 
-/// Find the PPC executable on this system.
+/// Report a user-facing error through PPC.
 ///
-/// Search order:
-///   1. %APPDATA%\wang.station\ppc.exe       (64-bit PPC)
-///   2. %APPDATA%\wang.station\ppc32.exe     (32-bit PPC)
-///
-/// Returns the first one that exists on disk.
-#[cfg(windows)]
-fn find_installed_ppc() -> Option<std::path::PathBuf> {
-    let appdata = std::env::var_os("APPDATA").map(std::path::PathBuf::from)?;
-    let base = appdata.join("wang.station");
-
-    // Prefer 64-bit ppc.exe, fall back to ppc32.exe
-    let candidates = [base.join("ppc.exe"), base.join("ppc32.exe")];
-
-    candidates.into_iter().find(|p| p.is_file())
-}
-
-/// Launch the per-user PPC as a hidden, fully-independent background process.
-///
-/// Creation flags (combined):
-///   CREATE_NO_WINDOW       = 0x08000000 — no console/taskbar window
-///   DETACHED_PROCESS       = 0x00000008 — do NOT attach to parent's console
-///   CREATE_NEW_PROCESS_GROUP = 0x00000200 — break out of parent's Job object
-///
-/// The DETACHED + CREATE_NEW_PROCESS_GROUP combo is critical on Windows:
-/// GUI apps (including Tauri) often run inside a Job object that gets
-/// terminated when the parent exits. Without these flags, PPC — our child
-/// process — gets swept away too. CREATE_NEW_PROCESS_GROUP makes PPC
-/// its own process group leader, immune to the parent's Job shutdown.
-///
-/// We intentionally let the Child drop immediately after spawn: on Windows,
-/// Rust's std Child drop only closes the process HANDLE, it does NOT call
-/// TerminateProcess. PPC continues running as a fully independent daemon.
-#[cfg(windows)]
-fn launch_installed_ppc_as_user() -> Result<(), String> {
-    use std::os::windows::process::CommandExt;
-
-    let executable = find_installed_ppc().ok_or_else(|| {
-        "PPC executable not found at %APPDATA%\\wang.station\\ppc.exe or ppc32.exe".to_string()
-    })?;
-
-    log::info!(
-        "Starting PPC in background (detached, no window): {}",
-        executable.display()
-    );
-
-    // Combined flags: no window + detached + new process group
-    // = fully independent of the parent Tauri process
-    const PPC_CREATION_FLAGS: u32 = 0x08000000 // CREATE_NO_WINDOW
-        | 0x00000008 // DETACHED_PROCESS
-        | 0x00000200; // CREATE_NEW_PROCESS_GROUP
-
-    let _child = std::process::Command::new(&executable)
-        .creation_flags(PPC_CREATION_FLAGS)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn PPC: {}", e))?;
-    // Child drops here — only closes handle, does NOT kill PPC on Windows.
-    // PPC is now fully detached and will survive the parent's Job shutdown.
-
-    log::info!("PPC spawned successfully (detached PID unknown after drop)");
-
-    Ok(())
+/// Every error path in this application funnels through here: PPC shows a
+/// native `WINDOW ERROR` dialog on the host. There is intentionally **no**
+/// in-app fallback dialog (v0.0.5 requirement) — if PPC cannot be reached the
+/// error is only written to the application log.
+pub fn report_error(message: &str) -> bool {
+    if show_ppc_error_window(message) {
+        return true;
+    }
+    log::error!("PPC unreachable, error not displayed: {}", message);
+    false
 }
 
 /// Send a WINDOW ERROR command to PPC to show a native error dialog.
@@ -643,179 +612,110 @@ pub fn show_ppc_warn_window(message: &str) -> bool {
     }
 }
 
-/// Wait for a TCP port to become connectable, polling at a fixed interval.
-/// Returns true if the port becomes available within `timeout_secs`.
-/// Returns false only when the deadline expires — failures inside the loop
-/// are treated as transient and retried until timeout.
-fn wait_for_port(host: &str, port: u16, timeout_secs: u64) -> bool {
-    let addr = format!("{}:{}", host, port);
-    let deadline = std::time::Instant::now() + Duration::from_secs(timeout_secs);
-
-    while std::time::Instant::now() < deadline {
-        if let Ok(stream) = std::net::TcpStream::connect_timeout(
-            &addr
-                .parse()
-                .unwrap_or_else(|_| "127.0.0.1:9527".parse().unwrap()),
-            Duration::from_millis(500),
-        ) {
-            drop(stream);
-            return true;
-        }
-        std::thread::sleep(Duration::from_millis(1000));
-    }
-
-    false
-}
-
-/// Duration to keep retrying PPC connection before giving up (5 minutes).
-/// This covers slow machines where PPC startup can take a while, or
-/// cases where the machine is under heavy load.
-const PPC_CONNECT_TIMEOUT_SECS: u64 = 300;
-
 // ---------------------------------------------------------------------------
 // Tauri commands
 // ---------------------------------------------------------------------------
 
-/// Connect to PPC with auto-launch using the Try-Launch-Try pattern.
+/// Connect to an already-running PPC instance.
 ///
-/// Flow (持续重试 5 分钟, 每 1 秒一次):
-///   1. Try ping PPC (quick — 2s timeout)
-///   2. If reachable → proceed to version check → register → authenticate
-///   3. If not reachable → launch PPC in background (CREATE_NO_WINDOW)
-///   4. Wait up to 5 minutes for port to become available, retrying every 1s
-///   5. If 5 minutes elapses → error out with final diagnostic
-///   6. If reachable now → proceed with version check → register → authenticate
+/// v0.0.5: PPC is started by the standalone launcher (`launcher/`, Go) before
+/// this app runs, so this command never spawns a process and has no fallback.
+/// It verifies connectivity, checks the version (0.0.9 ~ 0.1.1), registers the
+/// app and attempts `AUTH`.
 ///
-/// MUST be async: this command launches PPC and waits up to 5 minutes for
-/// it to come up. Synchronous commands run on the main thread in Tauri v2,
-/// so a sync version here freezes the whole UI.
+/// `AUTH` is optional on PPC v0.1.1 (global signature relaxation). A failed
+/// AUTH therefore downgrades the session to "connected, unauthenticated"
+/// instead of aborting — all commands remain available.
 #[tauri::command]
 pub async fn ppc_connect_auto(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, PpcState>,
 ) -> Result<PpcSession, String> {
-    // ── Step 1: Quick first try ───────────────────────────────────────
-    log::info!("PPC auto-connect: attempting first ping");
-    let first_try = ping_ppc().unwrap_or(false);
+    // 错误文案统一从语言表取，代码里不写死任何一种语言。
+    let lang = app_handle
+        .try_state::<crate::i18n::AppLanguage>()
+        .map(|state| state.current())
+        .unwrap_or_else(|| "en".to_string());
 
-    let launched = if !first_try {
-        // ── Step 2: Launch PPC in background (hidden window) ──────────
-        log::warn!("PPC not reachable on first try; launching PPC in background...");
-
-        #[cfg(windows)]
-        {
-            if let Err(e) = launch_installed_ppc_as_user() {
-                log::error!("Failed to launch PPC: {}", e);
-                let mut session = state.session.lock().map_err(|e| e.to_string())?;
-                session.connected = false;
-                session.status_message = e.clone();
-                session.last_error_code = Some("0x10017".to_string());
-                if !show_ppc_error_window(&e) {
-                    show_ppc_warning_dialog(&app_handle, &e);
-                }
-                return Err(e);
-            }
-
-            // ── Step 3: Persistent retry loop — up to 5 minutes ──────────
-            log::info!(
-                "Waiting up to {}s for PPC to become reachable...",
-                PPC_CONNECT_TIMEOUT_SECS
-            );
-            if !wait_for_port(PPC_HOST, PPC_PORT, PPC_CONNECT_TIMEOUT_SECS) {
-                let err_msg = format!(
-                    "PPC launched but did not become reachable within {}s ({}min). Check PPC logs.",
-                    PPC_CONNECT_TIMEOUT_SECS,
-                    PPC_CONNECT_TIMEOUT_SECS / 60
-                );
-                log::error!("{}", err_msg);
-                let mut session = state.session.lock().map_err(|e| e.to_string())?;
-                session.connected = false;
-                session.status_message = err_msg.clone();
-                session.last_error_code = Some("0x10017".to_string());
-                if !show_ppc_error_window(&err_msg) {
-                    show_ppc_warning_dialog(&app_handle, &err_msg);
-                }
-                return Err(err_msg);
-            }
-            log::info!(
-                "PPC is reachable after launch (within {}s)",
-                PPC_CONNECT_TIMEOUT_SECS
-            );
-            true
-        }
-
-        #[cfg(not(windows))]
-        {
-            let err_msg =
-                "PPC not running and auto-launch is only supported on Windows".to_string();
-            {
-                let mut session = state.session.lock().map_err(|e| e.to_string())?;
-                session.connected = false;
-                session.status_message = err_msg.clone();
-                session.last_error_code = Some("0x10017".to_string());
-            }
-            show_ppc_warning_dialog(
-                &app_handle,
-                "Failed to connect to PPC. Auto-launch is only supported on Windows.",
-            );
-            return Err(err_msg);
-        }
-    } else {
-        log::info!("PPC was already reachable on first try");
-        false
-    };
-
-    // ── Step 4: Version check ────────────────────────────────────────
-    let ppc_version = match check_ppc_version() {
-        Ok(v) => v,
-        Err(e) => {
-            let mut session = state.session.lock().map_err(|e| e.to_string())?;
-            session.connected = false;
-            session.status_message = e.clone();
-            session.last_error_code = Some("0x10019".to_string());
-            if !show_ppc_error_window(&e) {
-                show_ppc_warning_dialog(&app_handle, &e);
-            }
-            return Err(e);
-        }
-    };
-
-    // ── Step 5: Register ─────────────────────────────────────────────
-    let app_hash = match register_with_ppc() {
-        Ok(h) => h,
-        Err(e) => {
-            let mut session = state.session.lock().map_err(|e| e.to_string())?;
-            session.connected = false;
-            session.status_message = e.clone();
-            session.last_error_code = Some("0x10005".to_string());
-            if !show_ppc_error_window(&e) {
-                show_ppc_warning_dialog(&app_handle, &e);
-            }
-            return Err(e);
-        }
-    };
-
-    // ── Step 6: Authenticate ─────────────────────────────────────────
-    if let Err(e) = authenticate_with_ppc(&app_hash) {
+    log::info!("PPC connect: probing 127.0.0.1:9527");
+    if !ping_ppc().unwrap_or(false) {
+        let msg = crate::i18n::t(&lang, "errors.ppc.notRunning", &[]);
+        log::error!("{}", msg);
         let mut session = state.session.lock().map_err(|e| e.to_string())?;
         session.connected = false;
-        session.app_hash = Some(app_hash);
-        session.ppc_version = Some(ppc_version.clone());
-        session.status_message = e.clone();
-        session.last_error_code = Some("0x10018".to_string());
-        if !show_ppc_error_window(&e) {
-            show_ppc_warning_dialog(&app_handle, &e);
-        }
-        return Err(e);
+        session.status_message = msg.clone();
+        session.last_error_code = Some("0x10017".to_string());
+        // PPC 不可达，没有任何展示回退：只记录日志。
+        return Err(msg);
     }
 
-    // ── Success ───────────────────────────────────────────────────────
+    // ── Version check ────────────────────────────────────────────────
+    let ppc_version = match check_ppc_version() {
+        Ok(version) => version,
+        Err(PpcVersionError::Unsupported(version)) => {
+            let msg = crate::i18n::t(
+                &lang,
+                "errors.ppc.versionUnsupported",
+                &[
+                    ("version", &version),
+                    ("min", PPC_MIN_VERSION),
+                    ("max", PPC_MAX_VERSION),
+                ],
+            );
+            log::error!("{}", msg);
+            let mut session = state.session.lock().map_err(|e| e.to_string())?;
+            session.connected = false;
+            session.status_message = msg.clone();
+            session.last_error_code = Some("0x10019".to_string());
+            report_error(&msg);
+            return Err(msg);
+        }
+        Err(PpcVersionError::Query(detail)) => {
+            log::error!("PPC version query failed: {}", detail);
+            let msg = crate::i18n::t(&lang, "errors.ppc.versionCheckFailed", &[]);
+            let mut session = state.session.lock().map_err(|e| e.to_string())?;
+            session.connected = false;
+            session.status_message = msg.clone();
+            session.last_error_code = Some("0x10019".to_string());
+            report_error(&msg);
+            return Err(msg);
+        }
+    };
+
+    // ── Register ─────────────────────────────────────────────────────
+    let app_hash = match register_with_ppc() {
+        Ok(hash) => hash,
+        Err(detail) => {
+            log::error!("PPC registration failed: {}", detail);
+            let msg = crate::i18n::t(&lang, "errors.ppc.registerFailed", &[("code", "0x10005")]);
+            let mut session = state.session.lock().map_err(|e| e.to_string())?;
+            session.connected = false;
+            session.status_message = msg.clone();
+            session.last_error_code = Some("0x10005".to_string());
+            report_error(&msg);
+            return Err(msg);
+        }
+    };
+
+    // ── Authenticate (optional on PPC 0.1.1) ─────────────────────────
+    let authenticated = match authenticate_with_ppc(&app_hash) {
+        Ok(()) => true,
+        Err(e) => {
+            log::warn!("PPC AUTH failed (optional since v0.1.1, continuing): {}", e);
+            false
+        }
+    };
+
+    // ── Success ──────────────────────────────────────────────────────
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.connected = true;
     session.app_hash = Some(app_hash);
     session.ppc_version = Some(ppc_version.clone());
-    let launch_note = if launched { " (auto-launched)" } else { "" };
-    session.status_message = format!("Connected to PPC v{}{}", ppc_version, launch_note);
+    session.status_message = if authenticated {
+        format!("Connected to PPC v{}", ppc_version)
+    } else {
+        format!("Connected to PPC v{} (unauthenticated)", ppc_version)
+    };
     session.last_error_code = None;
 
     // Clear the failure cooldown now that PPC is confirmed reachable
@@ -824,19 +724,10 @@ pub async fn ppc_connect_auto(
     Ok(session.clone())
 }
 
-/// Show a modal warning dialog when PPC cannot be connected.
-fn show_ppc_warning_dialog(app_handle: &tauri::AppHandle, message: &str) {
-    use tauri_plugin_dialog::DialogExt;
-
-    log::warn!("Showing PPC warning dialog: {}", message);
-
-    app_handle
-        .dialog()
-        .message(message)
-        .title("PPC Connection Warning")
-        .show(|_| {
-            log::info!("PPC warning dialog dismissed");
-        });
+/// Report an error through PPC (used by the frontend for all error surfaces).
+#[tauri::command]
+pub fn ppc_report_error(message: String) -> bool {
+    report_error(&message)
 }
 
 /// Get current PPC session status (without connecting).
@@ -849,8 +740,12 @@ pub fn ppc_status(state: tauri::State<'_, PpcState>) -> PpcSession {
     session.clone()
 }
 
-/// Send a raw command to PPC. Requires an active session (will re-authenticate
-/// if needed, since PPC requires AUTH on every new TCP connection).
+/// Send a raw command to PPC. Requires an active session.
+///
+/// PPC v0.1.1 accepts every command without `AUTH` (global signature
+/// relaxation), while older builds expect an identity on each new TCP
+/// connection. `AUTH` is therefore sent only when a hash exists and a rejected
+/// AUTH is logged instead of aborting the command.
 #[tauri::command]
 pub fn ppc_send_command(
     state: tauri::State<'_, PpcState>,
@@ -865,10 +760,6 @@ pub fn ppc_send_command(
         return Err("PPC not connected, call ppc_connect first".to_string());
     }
 
-    let hash = hash.ok_or("No auth hash, register first")?;
-
-    // PPC requires AUTH on every new TCP connection, so we send AUTH first,
-    // then the actual command. Both must go through the same TCP connection.
     let addr = format!("{}:{}", PPC_HOST, PPC_PORT);
     let mut stream = TcpStream::connect_timeout(
         &addr
@@ -885,33 +776,25 @@ pub fn ppc_send_command(
         .set_write_timeout(Some(Duration::from_secs(TIMEOUT_SECS)))
         .map_err(|e| format!("Failed to set write timeout: {}", e))?;
 
-    // Send AUTH
-    let auth_cmd = format!("AUTH {}\n", hash);
-    stream
-        .write_all(auth_cmd.as_bytes())
-        .map_err(|e| format!("Failed to send AUTH: {}", e))?;
-
     let mut buf = [0u8; 4096];
-    let _auth_n = stream
-        .read(&mut buf)
-        .map_err(|e| format!("Failed to read AUTH response: {}", e))?;
 
-    // Verify AUTH succeeded before sending the actual command
-    let auth_response = String::from_utf8(buf[.._auth_n].to_vec()).unwrap_or_default();
-    let auth_code = parse_status_code(&auth_response).unwrap_or_default();
-    if !is_success_code(&auth_code) {
-        let msg = map_ppc_code(&auth_code);
-        // Update session state to reflect disconnection
-        {
-            let mut session = state.session.lock().map_err(|e| e.to_string())?;
-            session.connected = false;
-            session.status_message = format!("PPC auth expired: {} ({})", msg, auth_code);
-            session.last_error_code = Some(auth_code.clone());
+    // Optional AUTH on the same connection (best effort).
+    if let Some(hash) = hash {
+        stream
+            .write_all(format!("AUTH {}\n", hash).as_bytes())
+            .map_err(|e| format!("Failed to send AUTH: {}", e))?;
+
+        let auth_n = stream
+            .read(&mut buf)
+            .map_err(|e| format!("Failed to read AUTH response: {}", e))?;
+        let auth_response = String::from_utf8_lossy(&buf[..auth_n]).to_string();
+        let auth_code = parse_status_code(&auth_response).unwrap_or_default();
+        if !is_success_code(&auth_code) {
+            log::warn!(
+                "PPC AUTH rejected ({}); continuing because v0.1.1 does not require it",
+                auth_code
+            );
         }
-        return Err(format!(
-            "PPC authentication failed: {} ({})",
-            msg, auth_code
-        ));
     }
 
     // Send the actual command

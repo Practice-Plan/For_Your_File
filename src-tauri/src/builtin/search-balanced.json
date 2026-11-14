@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "id": "fyf.search.balanced",
+  "name": "Balanced Search",
+  "name_key": "components.builtinPackages.search.name",
+  "version": "1.0.0",
+  "description": "Relevance-first ordering with 50 results per page and multilingual matching.",
+  "description_key": "components.builtinPackages.search.description",
+  "author": "Practice Plan",
+  "kind": "search",
+  "components": [
+    {
+      "id": "search",
+      "kind": "search",
+      "title": "Balanced Search Profile",
+      "title_key": "components.builtinPackages.search.title",
+      "config": {
+        "sort": "relevance",
+        "page_size": 50,
+        "multilingual": true
+      }
+    }
+  ]
+}

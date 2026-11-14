@@ -1,0 +1,10 @@
+{
+  "messageTitle": "For Your File",
+  "ppcStartFailed": "فشل تشغيل PPC: {{detail}}",
+  "ppcTimeout": "لم يصبح PPC جاهزاً خلال {{seconds}} ثانية (المنفذ {{port}}).\nاسمح بطلب المسؤول أو شغّل PPC يدوياً.",
+  "appStartFailed": "فشل تشغيل التطبيق: {{detail}}",
+  "noAppData": "تعذّرت قراءة متغير البيئة APPDATA",
+  "ppcNotFound": "لم يتم العثور على PPC: {{path}}",
+  "noLauncherPath": "تعذّر تحديد مسار المشغّل: {{detail}}",
+  "noAppFound": "لم يتم العثور على التطبيق الرئيسي. ضع fyf-launcher.exe بجانب الملف التنفيذي الرئيسي."
+}
